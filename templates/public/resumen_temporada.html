@@ -1,0 +1,157 @@
+{{define "resumen_temporada.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resumen — Temporada {{.Resumen.Temporada.Anio}}</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+{{template "nav" .}}
+<main class="main">
+
+{{$r := .Resumen}}
+
+<div class="page-header">
+  <div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:3px">
+      <a href="/historial" style="color:var(--text-muted);text-decoration:none">Historial</a> ›
+    </div>
+    <h1 class="page-title">Resumen · Temporada {{$r.Temporada.Anio}}</h1>
+    <p class="page-subtitle">
+      <span class="badge badge-{{$r.Temporada.Estado}}">{{$r.Temporada.Estado}}</span>
+    </p>
+  </div>
+</div>
+
+{{if eq $r.TotalSesiones 0}}
+<div class="empty-state">
+  <div class="empty-icon">📭</div>
+  <div class="empty-title">Esta temporada no tiene datos</div>
+  <p>No se registró ninguna sesión.</p>
+</div>
+{{else}}
+
+<!-- Stats globales -->
+<div class="stats-grid mb-4">
+  <div class="stat-card">
+    <div class="stat-value">{{$r.TotalSesiones}}</div>
+    <div class="stat-label">Sesiones</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{$r.TotalJugadores}}</div>
+    <div class="stat-label">Jugadores</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{$r.TotalPartidas}}</div>
+    <div class="stat-label">Partidas</div>
+  </div>
+  {{if $r.ColorDominante}}
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:1.2rem">{{emojiColor $r.ColorDominante}} {{nombreColor $r.ColorDominante}}</div>
+    <div class="stat-label">Color dominante</div>
+  </div>
+  {{end}}
+</div>
+
+<!-- Podio -->
+{{if $r.Campeon}}
+<section class="mb-4">
+  <div class="section-title">Podio final</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+
+    <!-- Campeón -->
+    <div class="card" style="text-align:center;border:1px solid var(--border-hover)">
+      <div style="font-size:24px;margin-bottom:8px">🥇</div>
+      <div class="avatar" style="margin:0 auto 10px;width:56px;height:56px;font-size:1.5rem;background-color:{{$r.Campeon.Jugador.Color}}25;border-color:{{$r.Campeon.Jugador.Color}}55">
+        {{renderAvatar $r.Campeon.Jugador.Avatar}}
+      </div>
+      <div style="font-weight:600;font-size:15px;margin-bottom:4px">{{$r.Campeon.Jugador.Nombre}}</div>
+      <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Campeón</div>
+      <div style="font-size:13px;color:var(--text-muted)">
+        <strong class="vs-win">{{$r.Campeon.Victorias}}V</strong> · <strong class="vs-loss">{{$r.Campeon.Derrotas}}D</strong> · {{formatPct $r.Campeon.WinRate}}
+      </div>
+    </div>
+
+    {{if $r.Subcampeon}}
+    <div class="card" style="text-align:center">
+      <div style="font-size:22px;margin-bottom:8px">🥈</div>
+      <div class="avatar" style="margin:0 auto 10px;width:48px;height:48px;font-size:1.3rem;background-color:{{$r.Subcampeon.Jugador.Color}}18;border-color:{{$r.Subcampeon.Jugador.Color}}30">
+        {{renderAvatar $r.Subcampeon.Jugador.Avatar}}
+      </div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">{{$r.Subcampeon.Jugador.Nombre}}</div>
+      <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Subcampeón</div>
+      <div style="font-size:12px;color:var(--text-muted)">
+        <strong class="vs-win">{{$r.Subcampeon.Victorias}}V</strong> · <strong class="vs-loss">{{$r.Subcampeon.Derrotas}}D</strong> · {{formatPct $r.Subcampeon.WinRate}}
+      </div>
+    </div>
+    {{end}}
+
+    {{if $r.Tercero}}
+    <div class="card" style="text-align:center">
+      <div style="font-size:22px;margin-bottom:8px">🥉</div>
+      <div class="avatar" style="margin:0 auto 10px;width:48px;height:48px;font-size:1.3rem;background-color:{{$r.Tercero.Jugador.Color}}18;border-color:{{$r.Tercero.Jugador.Color}}30">
+        {{renderAvatar $r.Tercero.Jugador.Avatar}}
+      </div>
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px">{{$r.Tercero.Jugador.Nombre}}</div>
+      <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tercero</div>
+      <div style="font-size:12px;color:var(--text-muted)">
+        <strong class="vs-win">{{$r.Tercero.Victorias}}V</strong> · <strong class="vs-loss">{{$r.Tercero.Derrotas}}D</strong> · {{formatPct $r.Tercero.WinRate}}
+      </div>
+    </div>
+    {{end}}
+
+  </div>
+</section>
+{{end}}
+
+<!-- Ranking completo -->
+{{if $r.Ranking}}
+<section>
+  <div class="section-title">Clasificación final</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="ranking-table">
+      <thead>
+        <tr>
+          <th style="width:3rem">#</th>
+          <th>Jugador</th>
+          <th>Partidas</th>
+          <th>Victorias</th>
+          <th>Derrotas</th>
+          <th>Win rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range $i, $fila := $r.Ranking}}
+        <tr>
+          <td><span class="rank-num">{{add1 $i}}</span></td>
+          <td>
+            <div class="jugador-cell">
+              <div class="avatar" style="background-color:{{$fila.Jugador.Color}}18;border-color:{{$fila.Jugador.Color}}30">
+                {{renderAvatar $fila.Jugador.Avatar}}
+              </div>
+              <span class="jugador-nombre">{{$fila.Jugador.Nombre}}</span>
+            </div>
+          </td>
+          <td style="color:var(--text-muted)">{{$fila.Partidas}}</td>
+          <td><strong class="vs-win">{{$fila.Victorias}}</strong></td>
+          <td><strong class="vs-loss">{{$fila.Derrotas}}</strong></td>
+          <td>
+            <span class="win-rate {{if ge $fila.WinRate 60.0}}alta{{else if ge $fila.WinRate 40.0}}media{{else}}baja{{end}}">
+              {{formatPct $fila.WinRate}}
+            </span>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{end}}
+
+{{end}}
+
+</main>
+<script src="/static/js/main.js"></script>
+</body>
+</html>{{end}}

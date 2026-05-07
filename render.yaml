@@ -1,0 +1,16 @@
+# render.yaml — Blueprint de Render para deploy automático
+# Más info: https://docs.render.com/infrastructure-as-code
+
+services:
+  - type: web
+    name: mtg-tracker
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # Se configura manualmente con la URL de Supabase
+      - key: ADMIN_PASSWORD
+        sync: false  # Se configura manualmente
+      - key: PORT
+        value: 8080

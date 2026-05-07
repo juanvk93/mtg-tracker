@@ -1,0 +1,105 @@
+{{define "inicio.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ranking — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+{{template "nav" .}}
+<main class="main">
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Ranking{{if .Temporada}} · {{.Temporada.Anio}}{{end}}</h1>
+    {{if .Temporada}}
+    <p class="page-subtitle">Temporada activa · {{.Sesiones}} sesión{{if ne .Sesiones 1}}es{{end}} jugada{{if ne .Sesiones 1}}s{{end}}</p>
+    {{end}}
+  </div>
+</div>
+
+{{if .SinDatos}}
+<div class="empty-state">
+  <div class="empty-icon">🖌️</div>
+  <div class="empty-title">Sin datos aún</div>
+  <p>Crea una temporada y registra las primeras partidas desde el <a href="/admin" style="color:var(--text);text-decoration:underline">panel de admin</a>.</p>
+</div>
+{{else}}
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">{{len .Ranking}}</div>
+    <div class="stat-label">Jugadores</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{.Sesiones}}</div>
+    <div class="stat-label">Sesiones</div>
+  </div>
+  {{if .ColorTopNombre}}
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:1.2rem">{{emojiColor .ColorTop}} {{.ColorTopNombre}}</div>
+    <div class="stat-label">Color más jugado</div>
+  </div>
+  {{end}}
+  {{if .ColorWRNombre}}
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:1.1rem">{{emojiColor .ColorWR}} {{formatPct .ColorWRPct}}</div>
+    <div class="stat-label">Mejor color (win rate)</div>
+  </div>
+  {{end}}
+</div>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <table class="ranking-table">
+    <thead>
+      <tr>
+        <th style="width:3rem">#</th>
+        <th>Jugador</th>
+        <th>Partidas</th>
+        <th>Victorias</th>
+        <th>Derrotas</th>
+        <th>Win rate</th>
+        <th>Racha</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range $i, $fila := .Ranking}}
+      <tr>
+        <td><span class="rank-num">{{add1 $i}}</span></td>
+        <td>
+          <div class="jugador-cell">
+            <div class="avatar" style="background-color:{{$fila.Jugador.Color}}18;border-color:{{$fila.Jugador.Color}}30">
+              {{renderAvatar $fila.Jugador.Avatar}}
+            </div>
+            <span class="jugador-nombre">{{$fila.Jugador.Nombre}}</span>
+          </div>
+        </td>
+        <td style="color:var(--text-muted)">{{$fila.Partidas}}</td>
+        <td><strong class="vs-win">{{$fila.Victorias}}</strong></td>
+        <td><strong class="vs-loss">{{$fila.Derrotas}}</strong></td>
+        <td>
+          <span class="win-rate {{if ge $fila.WinRate 60.0}}alta{{else if ge $fila.WinRate 40.0}}media{{else}}baja{{end}}">
+            {{formatPct $fila.WinRate}}
+          </span>
+        </td>
+        <td>
+          {{if eq $fila.RachaActual 0}}
+            <span class="racha">—</span>
+          {{else if eq $fila.RachaTipo "W"}}
+            <span class="racha win">{{$fila.RachaActual}}V</span>
+          {{else}}
+            <span class="racha loss">{{$fila.RachaActual}}D</span>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+
+</main>
+<script src="/static/js/main.js"></script>
+</body>
+</html>{{end}}

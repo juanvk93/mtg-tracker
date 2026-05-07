@@ -1,0 +1,13 @@
+# Archivos de desarrollo que no deben ir en la imagen Docker
+.git
+.gitignore
+*.md
+data/
+*.db
+*.sqlite
+
+# Archivos de Windows
+Thumbs.db
+desktop.ini
+*.bat
+iniciar.bat

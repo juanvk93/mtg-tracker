@@ -1,0 +1,42 @@
+{{define "changelog.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Changelog — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+{{template "nav" .}}
+<main class="main">
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Changelog</h1>
+    <p class="page-subtitle">Versión actual: {{.Version}}</p>
+  </div>
+</div>
+
+<div style="max-width:680px">
+  {{range .Changelog}}
+  <div class="card mb-3">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1rem;padding-bottom:10px;border-bottom:0.5px solid var(--border)">
+      <strong style="font-size:16px;letter-spacing:-0.3px">v{{.Version}}</strong>
+      <span style="font-size:12px;color:var(--text-faint);font-family:'SF Mono','Courier New',monospace">{{.Fecha}}</span>
+    </div>
+    <ul style="list-style:none;padding:0;margin:0">
+      {{range .Cambios}}
+      <li style="font-size:13px;color:var(--text-muted);padding:4px 0;display:flex;gap:8px">
+        <span style="color:var(--text-faint);flex-shrink:0">·</span>
+        <span>{{.}}</span>
+      </li>
+      {{end}}
+    </ul>
+  </div>
+  {{end}}
+</div>
+
+</main>
+<script src="/static/js/main.js"></script>
+</body>
+</html>{{end}}

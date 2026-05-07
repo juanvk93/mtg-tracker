@@ -1,0 +1,119 @@
+{{define "resultados.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registrar resultados — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+{{template "nav" .}}
+<main class="main">
+
+<div class="page-header">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+    <a href="/admin" style="color:var(--text-muted);text-decoration:none">Admin</a> ›
+  </div>
+  <h1 class="page-title">✏ Registrar resultados</h1>
+  <p class="page-subtitle">
+    {{if .Sesion.Descripcion}}{{.Sesion.Descripcion}} · {{end}}{{formatFecha .Sesion.Fecha}}
+  </p>
+</div>
+
+<form method="POST" action="/admin/sesion/{{.Sesion.ID}}/resultados" id="form-resultados">
+  <input type="hidden" name="jugadores_sesion" id="jugadores-sesion-ids" value="">
+
+  <!-- Descripción editable -->
+  <div class="card mb-3">
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">Descripción de la sesión</label>
+      <input type="text" name="descripcion" class="form-input" value="{{.Sesion.Descripcion}}" placeholder="Draft Mayo, Commander, Sealed…">
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="section-title">1. ¿Quién jugó esta sesión?</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      {{range .Jugadores}}
+      <button type="button" id="btn-jug-{{.ID}}" class="btn btn-secondary"
+        onclick="toggleJugadorSesion({{.ID}}, this)">
+        <span style="margin-right:3px">{{renderAvatar .Avatar}}</span>{{.Nombre}}
+      </button>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="section-title">2. Resultados de cada jugador</div>
+
+  {{range .Jugadores}}
+  {{$jid := .ID}}
+  <div class="resultado-form-card" id="resultado-card-{{$jid}}" style="display:none">
+    <div class="resultado-form-header">
+      <div class="avatar avatar-sm" style="background-color:{{.Color}}18;border-color:{{.Color}}30">{{renderAvatar .Avatar}}</div>
+      <strong>{{.Nombre}}</strong>
+      <span class="toggle-icon" style="margin-left:auto;color:var(--text-muted)">▼</span>
+    </div>
+    <div class="resultado-form-body" data-self-id="{{$jid}}">
+      <div class="form-group">
+        <label class="form-label">Ganó a...</label>
+        <div class="checkbox-grid">
+          {{range $.Jugadores}}
+          {{if ne .ID $jid}}
+          <label class="checkbox-label">
+            <input type="checkbox" name="victoria_{{$jid}}" value="{{.ID}}">
+            <span>{{renderAvatar .Avatar}}</span> {{.Nombre}}
+          </label>
+          {{end}}
+          {{end}}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Colores jugados</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          {{range $.Colores}}
+          <label class="mana-checkbox mana-checkbox-{{.}}">
+            <input type="checkbox" name="color_{{$jid}}" value="{{.}}">
+            {{emojiColor .}} {{nombreColor .}}
+          </label>
+          {{end}}
+        </div>
+      </div>
+    </div>
+  </div>
+  {{end}}
+
+  <div style="display:flex;gap:1rem;margin-top:1.5rem">
+    <button type="submit" class="btn btn-primary">💾 Guardar resultados</button>
+    <a href="/admin" class="btn btn-secondary">Cancelar</a>
+  </div>
+</form>
+
+<script>
+var datosExistentes = { {{range .Detalle.Resultados}}
+  "{{.Jugador.ID}}": {
+    victorias: [{{range .Victorias}}{{.ID}},{{end}}],
+    colores: [{{range .Colores}}"{{.}}",{{end}}]
+  },{{end}}
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+  for (var jugID in datosExistentes) {
+    var btn = document.getElementById('btn-jug-' + jugID);
+    if (btn) toggleJugadorSesion(parseInt(jugID), btn);
+    var datos = datosExistentes[jugID];
+    datos.victorias.forEach(function(rivalID) {
+      var input = document.querySelector('input[name="victoria_' + jugID + '"][value="' + rivalID + '"]');
+      if (input) { input.checked = true; var label = input.closest('.checkbox-label'); if (label) label.classList.add('checked'); }
+    });
+    datos.colores.forEach(function(color) {
+      var input = document.querySelector('input[name="color_' + jugID + '"][value="' + color + '"]');
+      if (input) { input.checked = true; var label = input.closest('.mana-checkbox'); if (label) label.classList.add('checked'); }
+    });
+  }
+});
+</script>
+
+</main>
+<script src="/static/js/main.js"></script>
+</body>
+</html>{{end}}

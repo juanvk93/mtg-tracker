@@ -1,0 +1,304 @@
+{{define "estadisticas.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estadísticas — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+{{template "nav" .}}
+<main class="main">
+
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Estadísticas{{if .Temporada}} · {{.Temporada.Anio}}{{end}}</h1>
+  </div>
+</div>
+
+{{if .SinDatos}}
+<div class="empty-state">
+  <div class="empty-icon">📊</div>
+  <div class="empty-title">Sin datos disponibles</div>
+</div>
+{{else}}
+
+<!-- Distribución de colores del grupo -->
+{{if .DistColores}}
+<section class="mb-4">
+  <div class="section-title">Distribución de colores del grupo</div>
+  <div class="card">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      {{range .DistColores}}
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="mana-badge mana-badge-{{.Color}}" style="width:90px;justify-content:center;font-size:11px">
+          {{emojiColor .Color}} {{.Nombre}}
+        </span>
+        <div class="wr-bar-track" style="flex:1">
+          <div class="wr-bar-fill" style="width:{{redondear .Porcentaje}}%"></div>
+        </div>
+        <span style="font-size:12px;color:var(--text-muted);width:90px;text-align:right;white-space:nowrap">
+          {{.Veces}} ({{formatPct .Porcentaje}})
+        </span>
+      </div>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+<!-- Head to head extendido -->
+<section class="mb-4">
+  <div class="section-title">Head to head</div>
+  <div class="card mb-3">
+    <form method="GET" action="/estadisticas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0">
+        <label class="form-label">Jugador 1</label>
+        <select name="j1" class="form-select">
+          <option value="">Seleccionar...</option>
+          {{range .Jugadores}}
+          <option value="{{.ID}}" {{if eq (itoa .ID) $.J1Sel}}selected{{end}}>{{.Nombre}}</option>
+          {{end}}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0">
+        <label class="form-label">Jugador 2</label>
+        <select name="j2" class="form-select">
+          <option value="">Seleccionar...</option>
+          {{range .Jugadores}}
+          <option value="{{.ID}}" {{if eq (itoa .ID) $.J2Sel}}selected{{end}}>{{.Nombre}}</option>
+          {{end}}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Ver</button>
+    </form>
+  </div>
+
+  {{if .H2H}}
+  {{$h2h := .H2H}}
+  <div class="h2h-container mb-3">
+    <div class="h2h-player {{if gt $h2h.VictoriasJ1 $h2h.VictoriasJ2}}winner{{else}}loser{{end}}">
+      <div class="avatar" style="margin:0 auto 10px;width:48px;height:48px;font-size:1.4rem;background-color:{{$h2h.Jugador1.Color}}18;border-color:{{$h2h.Jugador1.Color}}30">
+        {{renderAvatar $h2h.Jugador1.Avatar}}
+      </div>
+      <div style="font-weight:600;margin-bottom:6px;font-size:13px">{{$h2h.Jugador1.Nombre}}</div>
+      <div class="h2h-score">{{$h2h.VictoriasJ1}}</div>
+      <div style="font-size:11px;color:var(--text-faint);margin-top:3px">victorias</div>
+    </div>
+    <div class="h2h-vs">
+      <div style="font-size:12px;font-weight:600">VS</div>
+      <div style="font-size:11px;color:var(--text-faint);margin-top:4px">{{$h2h.Total}} partidas</div>
+    </div>
+    <div class="h2h-player {{if gt $h2h.VictoriasJ2 $h2h.VictoriasJ1}}winner{{else}}loser{{end}}">
+      <div class="avatar" style="margin:0 auto 10px;width:48px;height:48px;font-size:1.4rem;background-color:{{$h2h.Jugador2.Color}}18;border-color:{{$h2h.Jugador2.Color}}30">
+        {{renderAvatar $h2h.Jugador2.Avatar}}
+      </div>
+      <div style="font-weight:600;margin-bottom:6px;font-size:13px">{{$h2h.Jugador2.Nombre}}</div>
+      <div class="h2h-score">{{$h2h.VictoriasJ2}}</div>
+      <div style="font-size:11px;color:var(--text-faint);margin-top:3px">victorias</div>
+    </div>
+  </div>
+
+  <!-- Encuentros por sesión -->
+  {{if $h2h.Encuentros}}
+  <div class="card" style="padding:0;overflow:hidden">
+    <div style="padding:10px 14px;background:var(--bg-surface);border-bottom:0.5px solid var(--border);font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">
+      Encuentros por sesión
+    </div>
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Sesión</th>
+          <th>{{renderAvatar $h2h.Jugador1.Avatar}} jugaba</th>
+          <th>{{renderAvatar $h2h.Jugador2.Avatar}} jugaba</th>
+          <th style="text-align:right">Resultado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range $h2h.Encuentros}}
+        <tr>
+          <td>
+            <a href="/sesion/{{.SesionID}}" style="color:var(--text);text-decoration:none">
+              {{if .Descripcion}}{{.Descripcion}}{{else}}{{formatFechaCorta .Fecha}}{{end}}
+            </a>
+          </td>
+          <td>
+            <div style="display:flex;gap:3px;flex-wrap:wrap">
+              {{range .ColoresJ1}}<span class="mana-badge mana-badge-{{.}}" style="font-size:10px;padding:1px 5px">{{emojiColor .}}</span>{{end}}
+              {{if not .ColoresJ1}}<span style="font-size:11px;color:var(--text-faint)">—</span>{{end}}
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;gap:3px;flex-wrap:wrap">
+              {{range .ColoresJ2}}<span class="mana-badge mana-badge-{{.}}" style="font-size:10px;padding:1px 5px">{{emojiColor .}}</span>{{end}}
+              {{if not .ColoresJ2}}<span style="font-size:11px;color:var(--text-faint)">—</span>{{end}}
+            </div>
+          </td>
+          <td style="text-align:right;white-space:nowrap;font-size:12px">
+            <strong class="vs-win">{{.GanadasPorJ1}}</strong>–<strong class="vs-loss">{{.GanadasPorJ2}}</strong>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+  {{end}}
+</section>
+
+<!-- Estadísticas detalladas por jugador -->
+{{if .JugadoresStats}}
+<section>
+  <div class="section-title">Por jugador</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px">
+    {{range .JugadoresStats}}
+    <div class="card card-sm">
+
+      <!-- Cabecera del jugador -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:0.5px solid var(--border)">
+        <div class="avatar" style="background-color:{{.Jugador.Color}}18;border-color:{{.Jugador.Color}}30">
+          {{renderAvatar .Jugador.Avatar}}
+        </div>
+        <strong style="font-size:14px">{{.Jugador.Nombre}}</strong>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-faint)">{{.SesionesJugadas}} sesion{{if ne .SesionesJugadas 1}}es{{end}}</span>
+      </div>
+
+      <!-- Métricas clave -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px;font-size:12px">
+        <div style="background:var(--bg-surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px">
+          <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Promedio V/sesión</div>
+          <strong style="font-size:14px">{{printf "%.1f" .PromedioVictorias}}</strong>
+        </div>
+        <div style="background:var(--bg-surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px">
+          <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Constancia</div>
+          <strong style="font-size:14px">
+            {{if eq (redondear .DesviacionWinRate) 0}}—{{else if le (redondear .DesviacionWinRate) 15}}Alta{{else if le (redondear .DesviacionWinRate) 30}}Media{{else}}Baja{{end}}
+          </strong>
+          <span style="font-size:10px;color:var(--text-faint);margin-left:4px">σ={{printf "%.0f" .DesviacionWinRate}}</span>
+        </div>
+      </div>
+
+      <!-- Highlights -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+
+        {{if .CombinacionTop}}
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0">Favorita</span>
+          <div style="display:flex;gap:3px;flex-wrap:wrap;flex:1">
+            {{range .CombinacionTop.Colores}}
+            <span class="mana-badge mana-badge-{{.}}" style="font-size:10px;padding:1px 6px">{{emojiColor .}} {{nombreColor .}}</span>
+            {{end}}
+          </div>
+          <span style="font-size:10px;color:var(--text-faint)">×{{.CombinacionTop.Veces}}</span>
+        </div>
+        {{end}}
+
+        {{if .MejorSesion}}
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0">Mejor sesión</span>
+          <a href="/sesion/{{.MejorSesion.SesionID}}" style="color:var(--text);text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {{if .MejorSesion.Descripcion}}{{.MejorSesion.Descripcion}}{{else}}{{formatFechaCorta .MejorSesion.Fecha}}{{end}}
+          </a>
+          <span style="font-size:11px;color:var(--text-faint);white-space:nowrap"><strong class="vs-win">{{.MejorSesion.Victorias}}V</strong>–<strong class="vs-loss">{{.MejorSesion.Derrotas}}D</strong></span>
+        </div>
+        {{end}}
+
+        {{if .Verdugo}}
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0" title="Rival contra quien peor win rate tiene">Verdugo</span>
+          <span style="display:flex;align-items:center;gap:5px;flex:1">
+            <span style="font-size:14px">{{renderAvatar .Verdugo.Rival.Avatar}}</span>{{.Verdugo.Rival.Nombre}}
+          </span>
+          <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{formatPct .Verdugo.WinRate}} ({{.Verdugo.Victorias}}V–{{.Verdugo.Derrotas}}D)</span>
+        </div>
+        {{end}}
+
+        {{if .Victima}}
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0" title="Rival contra quien mejor win rate tiene">Víctima</span>
+          <span style="display:flex;align-items:center;gap:5px;flex:1">
+            <span style="font-size:14px">{{renderAvatar .Victima.Rival.Avatar}}</span>{{.Victima.Rival.Nombre}}
+          </span>
+          <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{formatPct .Victima.WinRate}} ({{.Victima.Victorias}}V–{{.Victima.Derrotas}}D)</span>
+        </div>
+        {{end}}
+
+        {{if .RivalTop}}
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0">Rival top</span>
+          <span style="display:flex;align-items:center;gap:5px;flex:1">
+            <span style="font-size:14px">{{renderAvatar .RivalTop.Rival.Avatar}}</span>{{.RivalTop.Rival.Nombre}}
+          </span>
+          <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{.RivalTop.Partidas}} partidas</span>
+        </div>
+        {{end}}
+
+        {{if gt .RachaRecord.Longitud 0}}
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0">Récord</span>
+          <span class="racha {{if eq .RachaRecord.Tipo "W"}}win{{else}}loss{{end}}" style="font-size:11px">
+            {{.RachaRecord.Longitud}}{{.RachaRecord.Tipo}} consecutivas
+          </span>
+        </div>
+        {{end}}
+
+      </div>
+
+      <!-- Distribución mono/bi/tri color -->
+      {{if gt .DistribucionDrafts.Total 0}}
+      <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Tipos de draft</div>
+      <div style="display:flex;height:16px;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:6px;border:0.5px solid var(--border)">
+        {{$total := .DistribucionDrafts.Total}}
+        {{if gt .DistribucionDrafts.Mono 0}}
+        <div title="Mono ({{.DistribucionDrafts.Mono}})" style="background:var(--text);width:{{redondear (mulPct .DistribucionDrafts.Mono $total)}}%"></div>
+        {{end}}
+        {{if gt .DistribucionDrafts.Bicolor 0}}
+        <div title="Bicolor ({{.DistribucionDrafts.Bicolor}})" style="background:var(--text-muted);width:{{redondear (mulPct .DistribucionDrafts.Bicolor $total)}}%"></div>
+        {{end}}
+        {{if gt .DistribucionDrafts.Tricolor 0}}
+        <div title="Tricolor ({{.DistribucionDrafts.Tricolor}})" style="background:var(--text-faint);width:{{redondear (mulPct .DistribucionDrafts.Tricolor $total)}}%"></div>
+        {{end}}
+        {{if gt .DistribucionDrafts.MasColor 0}}
+        <div title="4+ colores ({{.DistribucionDrafts.MasColor}})" style="background:var(--bg-surface);border-left:0.5px solid var(--border);width:{{redondear (mulPct .DistribucionDrafts.MasColor $total)}}%"></div>
+        {{end}}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:10px;color:var(--text-faint);margin-bottom:14px">
+        {{if gt .DistribucionDrafts.Mono 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--text);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Mono {{.DistribucionDrafts.Mono}}</span>{{end}}
+        {{if gt .DistribucionDrafts.Bicolor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--text-muted);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Bi {{.DistribucionDrafts.Bicolor}}</span>{{end}}
+        {{if gt .DistribucionDrafts.Tricolor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--text-faint);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Tri {{.DistribucionDrafts.Tricolor}}</span>{{end}}
+        {{if gt .DistribucionDrafts.MasColor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--bg-surface);border:0.5px solid var(--border);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>4+ {{.DistribucionDrafts.MasColor}}</span>{{end}}
+      </div>
+      {{end}}
+
+      <!-- Win rate por color -->
+      {{if .Colores}}
+      <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Win rate por color</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        {{range .Colores}}
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="mana-badge mana-badge-{{.Color}}" style="width:80px;justify-content:center;font-size:11px">
+            {{emojiColor .Color}} {{.Nombre}}
+          </span>
+          <div class="wr-bar-track" style="flex:1">
+            <div class="wr-bar-fill" style="width:{{redondear .WinRate}}%"></div>
+          </div>
+          <span style="font-size:11px;color:var(--text-faint);width:60px;text-align:right;white-space:nowrap">
+            {{formatPct .WinRate}} ({{.Partidas}})
+          </span>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+
+    </div>
+    {{end}}
+  </div>
+</section>
+{{end}}
+
+{{end}}
+
+</main>
+<script src="/static/js/main.js"></script>
+</body>
+</html>{{end}}

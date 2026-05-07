@@ -1,0 +1,770 @@
+/* === MTG Draft Tracker — Estilos ===
+   Inspirado en el lenguaje visual de la app de stock de pinturas:
+   sistema de variables, fondo crema, borders 0.5px, tipografía system-ui
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg:           #f4f2ee;
+  --bg-card:      #ffffff;
+  --bg-surface:   #eeece8;
+  --border:       rgba(0,0,0,0.12);
+  --border-hover: rgba(0,0,0,0.25);
+  --text:         #1a1a1a;
+  --text-muted:   #666;
+  --text-faint:   #999;
+  --accent:       #1a1a1a;
+  --radius:       10px;
+  --radius-sm:    6px;
+  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:           #1a1918;
+    --bg-card:      #242322;
+    --bg-surface:   #2d2c2a;
+    --border:       rgba(255,255,255,0.1);
+    --border-hover: rgba(255,255,255,0.25);
+    --text:         #f0ede8;
+    --text-muted:   #999;
+    --text-faint:   #666;
+    --accent:       #f0ede8;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === NAVEGACIÓN === */
+.nav {
+  background: var(--bg-card);
+  border-bottom: 0.5px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  height: 52px;
+}
+
+.nav-logo {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: -0.2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.nav-links {
+  display: flex;
+  gap: 2px;
+  list-style: none;
+  flex: 1;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.1s, background 0.1s;
+}
+
+.nav-links a:hover { color: var(--text); background: var(--bg-surface); }
+.nav-links a.active { color: var(--text); background: var(--bg-surface); }
+
+.nav-admin {
+  font-size: 12px;
+  color: var(--text-faint);
+  text-decoration: none;
+  padding: 5px 12px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-left: auto;
+  transition: border-color 0.1s, color 0.1s;
+}
+.nav-admin:hover { color: var(--text); border-color: var(--border-hover); }
+
+/* === LAYOUT === */
+.main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+/* === CABECERA DE PÁGINA === */
+.page-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 0.5px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+
+.page-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* === CARDS === */
+.card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.card-sm { padding: 1rem; }
+
+/* === STATS === */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  color: var(--text);
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+/* === TABLA DE RANKING === */
+.ranking-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ranking-table th {
+  text-align: left;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+  border-bottom: 0.5px solid var(--border);
+  white-space: nowrap;
+}
+
+.ranking-table th:not(:first-child) { text-align: center; }
+
+.ranking-table td {
+  padding: 10px 12px;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+}
+
+.ranking-table td:not(:first-child) { text-align: center; }
+.ranking-table tr:last-child td { border-bottom: none; }
+.ranking-table tr:hover td { background: var(--bg-surface); }
+
+.rank-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-faint);
+  width: 2rem;
+  display: inline-block;
+  text-align: center;
+}
+
+.jugador-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  border: 0.5px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.avatar-sm { width: 24px; height: 24px; font-size: 0.8rem; }
+
+.jugador-nombre { font-weight: 500; font-size: 13px; }
+
+/* === WIN RATE === */
+.win-rate { font-weight: 600; }
+.win-rate.alta  { color: #2d7a47; }
+.win-rate.media { color: var(--text-muted); }
+.win-rate.baja  { color: #a0391a; }
+
+/* === RACHA === */
+.racha {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--bg-surface);
+  color: var(--text-faint);
+  border: 0.5px solid var(--border);
+}
+
+.racha.win  { background: #edf7f1; color: #2d7a47; border-color: rgba(45,122,71,0.2); }
+.racha.loss { background: #fdf1ee; color: #a0391a; border-color: rgba(160,57,26,0.2); }
+
+@media (prefers-color-scheme: dark) {
+  .racha.win  { background: rgba(45,122,71,0.15); border-color: rgba(45,122,71,0.25); }
+  .racha.loss { background: rgba(160,57,26,0.15); border-color: rgba(160,57,26,0.25); }
+}
+
+/* === COLORES DE MANÁ (badges) === */
+
+/* Iconos de Mana Font dentro de badges y checkboxes */
+.mana-badge .ms,
+.mana-checkbox .ms {
+  font-size: 1em;
+  vertical-align: -1px;
+}
+
+.mana-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 0.5px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+}
+
+/* Colores sutiles para los símbolos de maná */
+.mana-badge-W { background: #faf8f0; color: #7a6a2a; border-color: rgba(122,106,42,0.2); }
+.mana-badge-U { background: #eef4fb; color: #1f5c96; border-color: rgba(31,92,150,0.2); }
+.mana-badge-B { background: #f2eef8; color: #5a3a8a; border-color: rgba(90,58,138,0.2); }
+.mana-badge-R { background: #fdf0ec; color: #a03520; border-color: rgba(160,53,32,0.2); }
+.mana-badge-G { background: #eef6f0; color: #2a6e3a; border-color: rgba(42,110,58,0.2); }
+
+@media (prefers-color-scheme: dark) {
+  .mana-badge-W { background: rgba(122,106,42,0.12); color: #c8a84c; border-color: rgba(122,106,42,0.25); }
+  .mana-badge-U { background: rgba(31,92,150,0.12); color: #6aabf0; border-color: rgba(31,92,150,0.25); }
+  .mana-badge-B { background: rgba(90,58,138,0.12); color: #a882d8; border-color: rgba(90,58,138,0.25); }
+  .mana-badge-R { background: rgba(160,53,32,0.12); color: #e0785a; border-color: rgba(160,53,32,0.25); }
+  .mana-badge-G { background: rgba(42,110,58,0.12); color: #5aba7a; border-color: rgba(42,110,58,0.25); }
+}
+
+/* === SESIONES === */
+.sesion-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  transition: box-shadow 0.12s, border-color 0.12s, transform 0.12s;
+  margin-bottom: 8px;
+}
+
+.sesion-item:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+
+.sesion-fecha {
+  background: var(--bg-surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sesion-desc { font-weight: 500; font-size: 13px; }
+.sesion-meta { font-size: 11px; color: var(--text-faint); }
+.sesion-arrow { margin-left: auto; color: var(--text-faint); font-size: 13px; }
+
+/* === DETALLE SESIÓN === */
+.resultado-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.resultado-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--bg-surface);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.resultado-stats {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vs-win  { color: #2d7a47; }
+.vs-loss { color: #a0391a; }
+
+.resultado-row {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.resultado-group { flex: 1; min-width: 130px; }
+
+.resultado-group-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.rival-list { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.rival-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  border: 0.5px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+}
+
+.rival-chip.win  { background: #edf7f1; color: #2d7a47; border-color: rgba(45,122,71,0.2); }
+.rival-chip.loss { background: #fdf1ee; color: #a0391a; border-color: rgba(160,57,26,0.2); }
+
+@media (prefers-color-scheme: dark) {
+  .rival-chip.win  { background: rgba(45,122,71,0.15); border-color: rgba(45,122,71,0.3); }
+  .rival-chip.loss { background: rgba(160,57,26,0.15); border-color: rgba(160,57,26,0.3); }
+}
+
+/* === HEAD TO HEAD === */
+.h2h-container {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.75rem;
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.h2h-player { flex: 1; text-align: center; }
+
+.h2h-score {
+  font-size: 36px;
+  font-weight: 600;
+  letter-spacing: -1.5px;
+  color: var(--text);
+}
+
+.h2h-player.winner .h2h-score { color: var(--text); }
+.h2h-player.loser  .h2h-score { color: var(--text-faint); }
+
+.h2h-vs {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* === BARRAS DE WIN RATE (estadísticas) === */
+.wr-bar-track {
+  flex: 1;
+  background: var(--bg-surface);
+  border-radius: 20px;
+  height: 5px;
+  overflow: hidden;
+  border: 0.5px solid var(--border);
+}
+
+.wr-bar-fill {
+  height: 100%;
+  border-radius: 20px;
+  background: var(--text);
+  min-width: 3px;
+}
+
+/* === FORMULARIOS === */
+.form-group { margin-bottom: 14px; }
+
+.form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.1s;
+  appearance: none;
+  -webkit-appearance: none;
+  height: 38px;
+}
+
+.form-input:focus, .form-select:focus { border-color: var(--border-hover); }
+.form-input[type="color"] { padding: 3px 8px; cursor: pointer; }
+textarea.form-input { height: auto; min-height: 80px; resize: vertical; line-height: 1.5; }
+
+/* === BOTONES === */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.1s;
+  border: none;
+  text-decoration: none;
+  font-family: var(--font);
+  white-space: nowrap;
+  height: 34px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg-card);
+}
+.btn-primary:hover { opacity: 0.85; }
+
+.btn-secondary {
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 0.5px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--border-hover); color: var(--text); }
+
+.btn-danger {
+  background: var(--bg-surface);
+  color: #a0391a;
+  border: 0.5px solid rgba(160,57,26,0.2);
+}
+.btn-danger:hover { background: #fdf1ee; border-color: rgba(160,57,26,0.35); }
+
+.btn-sm { padding: 5px 10px; font-size: 12px; height: 28px; }
+
+/* === ADMIN PANEL === */
+.admin-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.admin-sidebar { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 1rem;
+  padding-bottom: 8px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+/* Tabla admin */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-faint);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.admin-table td {
+  padding: 9px 10px;
+  border-bottom: 0.5px solid var(--border);
+  font-size: 13px;
+}
+
+.admin-table tr:last-child td { border-bottom: none; }
+.admin-table tr:hover td { background: var(--bg-surface); }
+
+/* === FORMULARIO DE RESULTADOS === */
+.resultado-form-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.resultado-form-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border-bottom: 0.5px solid var(--border);
+  cursor: pointer;
+}
+
+.resultado-form-body { padding: 14px; }
+
+/* Checkboxes personalizados — rivales */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  transition: border-color 0.1s;
+  user-select: none;
+}
+
+.checkbox-label input { display: none; }
+.checkbox-label:hover { border-color: var(--border-hover); }
+.checkbox-label.checked {
+  border-color: var(--accent);
+  background: var(--bg-card);
+  font-weight: 500;
+}
+
+/* Checkboxes de colores de maná */
+.mana-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  border: 0.5px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color 0.1s, background 0.1s;
+  user-select: none;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+}
+
+.mana-checkbox input { display: none; }
+.mana-checkbox:hover { border-color: var(--border-hover); }
+
+.mana-checkbox-W.checked { background: #faf8f0; border-color: rgba(122,106,42,0.4); color: #7a6a2a; }
+.mana-checkbox-U.checked { background: #eef4fb; border-color: rgba(31,92,150,0.4); color: #1f5c96; }
+.mana-checkbox-B.checked { background: #f2eef8; border-color: rgba(90,58,138,0.4); color: #5a3a8a; }
+.mana-checkbox-R.checked { background: #fdf0ec; border-color: rgba(160,53,32,0.4); color: #a03520; }
+.mana-checkbox-G.checked { background: #eef6f0; border-color: rgba(42,110,58,0.4); color: #2a6e3a; }
+
+@media (prefers-color-scheme: dark) {
+  .mana-checkbox-W.checked { background: rgba(122,106,42,0.15); border-color: rgba(122,106,42,0.4); color: #c8a84c; }
+  .mana-checkbox-U.checked { background: rgba(31,92,150,0.15); border-color: rgba(31,92,150,0.4); color: #6aabf0; }
+  .mana-checkbox-B.checked { background: rgba(90,58,138,0.15); border-color: rgba(90,58,138,0.4); color: #a882d8; }
+  .mana-checkbox-R.checked { background: rgba(160,53,32,0.15); border-color: rgba(160,53,32,0.4); color: #e0785a; }
+  .mana-checkbox-G.checked { background: rgba(42,110,58,0.15); border-color: rgba(42,110,58,0.4); color: #5aba7a; }
+}
+
+/* === BADGES === */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 0.5px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+}
+
+.badge-activa  { background: #edf7f1; color: #2d7a47; border-color: rgba(45,122,71,0.25); }
+.badge-cerrada { background: var(--bg-surface); color: var(--text-faint); }
+
+@media (prefers-color-scheme: dark) {
+  .badge-activa { background: rgba(45,122,71,0.15); border-color: rgba(45,122,71,0.3); }
+}
+
+/* === EMPTY STATE === */
+.empty-state {
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  color: var(--text-faint);
+}
+
+.empty-icon  { font-size: 2rem; margin-bottom: 10px; }
+.empty-title { font-size: 15px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+
+/* === MENSAJES DE ERROR === */
+.error-msg {
+  background: #fdf1ee;
+  color: #a0391a;
+  border: 0.5px solid rgba(160,57,26,0.25);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error-msg { background: rgba(160,57,26,0.15); border-color: rgba(160,57,26,0.3); color: #e08060; }
+}
+
+/* === LOGIN === */
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  text-align: center;
+}
+
+.login-icon  { font-size: 2rem; margin-bottom: 10px; }
+.login-title { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; margin-bottom: 4px; }
+.login-sub   { font-size: 12px; color: var(--text-muted); margin-bottom: 1.5rem; }
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .main { padding: 1.25rem 1rem 3rem; }
+  .nav-inner { padding: 0 1rem; gap: 1rem; }
+  .admin-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .ranking-table th:nth-child(n+5),
+  .ranking-table td:nth-child(n+5) { display: none; }
+  .h2h-container { flex-direction: column; gap: 1rem; }
+}
+
+@media (max-width: 480px) {
+  .nav-links { display: none; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* === UTILIDADES === */
+.flex         { display: flex; }
+.flex-center  { display: flex; align-items: center; }
+.gap-sm       { gap: 6px; }
+.gap-md       { gap: 12px; }
+.gap-lg       { gap: 1.5rem; }
+.mb-1         { margin-bottom: 6px; }
+.mb-2         { margin-bottom: 12px; }
+.mb-3         { margin-bottom: 1.5rem; }
+.mb-4         { margin-bottom: 2rem; }
+.ml-auto      { margin-left: auto; }
+.text-muted   { color: var(--text-muted); }
+.text-faint   { color: var(--text-faint); }
+.text-sm      { font-size: 12px; }
+.text-xs      { font-size: 11px; }
+.font-mono    { font-family: 'SF Mono', 'Courier New', monospace; }
+.w-full       { width: 100%; }
+.grid-2       { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+hr.divider {
+  border: none;
+  border-top: 0.5px solid var(--border);
+  margin: 1.25rem 0;
+}

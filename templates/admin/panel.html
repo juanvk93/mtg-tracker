@@ -1,0 +1,341 @@
+{{define "panel.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Admin — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+{{template "nav" .}}
+<main class="main">
+
+<div class="page-header" style="display:flex;align-items:center;gap:1rem">
+  <div>
+    <h1 class="page-title">⚙ Panel de Administración</h1>
+    <p class="page-subtitle">Gestiona temporadas, sesiones y jugadores</p>
+  </div>
+  <a href="/admin/logout" class="btn btn-secondary btn-sm" style="margin-left:auto">Cerrar sesión</a>
+</div>
+
+<div class="admin-grid">
+
+  <div class="admin-sidebar">
+
+    <div class="card">
+      <div class="section-title">Nueva temporada</div>
+      <form method="POST" action="/admin/temporada/crear">
+        <div class="form-group">
+          <label class="form-label">Año</label>
+          <input type="number" name="anio" class="form-input" value="{{.AnioActual}}" min="2000" max="2100" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-full" style="justify-content:center">+ Crear temporada</button>
+      </form>
+    </div>
+
+    {{if .TemporadaActiva.ID}}
+    <div class="card">
+      <div class="section-title">Nueva sesión</div>
+      <form method="POST" action="/admin/sesion/crear">
+        <input type="hidden" name="temporada_id" value="{{.TemporadaActiva.ID}}">
+        <div class="form-group">
+          <label class="form-label">Fecha</label>
+          <input type="date" name="fecha" class="form-input" value="{{hoy}}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Descripción (opcional)</label>
+          <input type="text" name="descripcion" class="form-input" placeholder="Draft Enero, Commander…">
+        </div>
+        <button type="submit" class="btn btn-primary w-full" style="justify-content:center">+ Crear sesión</button>
+      </form>
+    </div>
+    {{end}}
+
+    <div class="card">
+      <div class="section-title">Nuevo jugador</div>
+      <form method="POST" action="/admin/jugador/crear">
+        <div class="form-group">
+          <label class="form-label">Nombre</label>
+          <input type="text" name="nombre" class="form-input" placeholder="Nombre del jugador" required>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Color</label>
+            <input type="color" name="color" class="form-input" value="#6c757d">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Avatar</label>
+            <input type="hidden" name="avatar" id="nuevo-avatar-input" value="ms-planeswalker">
+            <div onclick="abrirSelectorEmoji('nuevo-avatar-input')" id="nuevo-avatar-display"
+              style="cursor:pointer;display:flex;align-items:center;justify-content:center;height:38px;background:var(--bg-surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);font-size:22px">
+              <i class="ms ms-planeswalker" aria-hidden="true"></i>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text-faint);margin-top:-8px;margin-bottom:12px">Toca el icono para cambiarlo</div>
+        <button type="submit" class="btn btn-primary w-full" style="justify-content:center">+ Añadir jugador</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Backup de datos</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">
+        Exporta todos los datos a JSON para guardarlos a salvo e importa para restaurarlos.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="/admin/exportar" class="btn btn-secondary w-full" style="justify-content:center">↓ Exportar JSON</a>
+        <a href="/admin/importar" class="btn btn-secondary w-full" style="justify-content:center">↑ Importar JSON</a>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:rgba(160,57,26,0.25)">
+      <div class="section-title" style="color:#a0391a">Zona peligrosa</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">
+        Borra <strong>todos</strong> los datos de la aplicación: jugadores, temporadas, sesiones y resultados. La operación es irreversible.
+      </p>
+      <button type="button" class="btn btn-danger w-full" style="justify-content:center" onclick="abrirModalFarewell()">
+        <i class="ms ms-ability-deathtouch" aria-hidden="true"></i> Farewell
+      </button>
+    </div>
+
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:1.25rem 1.5rem;border-bottom:0.5px solid var(--border)">
+        <span class="section-title" style="margin:0;border:none;padding:0">Temporadas</span>
+      </div>
+      {{if not .Temporadas}}
+      <div class="empty-state" style="padding:2rem"><p>No hay temporadas aún</p></div>
+      {{else}}
+      <table class="admin-table">
+        <thead><tr><th>Año</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+          {{range .Temporadas}}
+          <tr>
+            <td><strong>{{.Anio}}</strong></td>
+            <td><span class="badge badge-{{.Estado}}">{{.Estado}}</span></td>
+            <td>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;align-items:center">
+                <a href="/temporada/{{.ID}}/resumen" class="btn btn-secondary btn-sm" title="Ver resumen de la temporada" style="padding:5px 8px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </a>
+                {{if eq .Estado "activa"}}
+                <form method="POST" action="/admin/temporada/cerrar" style="display:inline">
+                  <input type="hidden" name="id" value="{{.ID}}">
+                  <button type="submit" class="btn btn-secondary btn-sm"
+                    onclick="return confirm('¿Cerrar la temporada {{.Anio}}?')">Cerrar</button>
+                </form>
+                {{else}}
+                <form method="POST" action="/admin/temporada/reabrir" style="display:inline">
+                  <input type="hidden" name="id" value="{{.ID}}">
+                  <button type="submit" class="btn btn-secondary btn-sm"
+                    onclick="return confirm('¿Reabrir la temporada {{.Anio}}? Si hay otra temporada activa, se cerrará automáticamente.')">Reabrir</button>
+                </form>
+                {{end}}
+                <button type="button" class="btn btn-danger btn-sm"
+                  onclick="abrirModalBorrarTemporada({{.ID}}, '{{.Anio}}')">Borrar</button>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+      {{end}}
+    </div>
+
+    {{if .TemporadaActiva.ID}}
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:1.25rem 1.5rem;border-bottom:0.5px solid var(--border)">
+        <span class="section-title" style="margin:0;border:none;padding:0">Sesiones — Temporada {{.TemporadaActiva.Anio}}</span>
+      </div>
+      {{if not .Sesiones}}
+      <div class="empty-state" style="padding:2rem"><p>Sin sesiones en esta temporada</p></div>
+      {{else}}
+      <table class="admin-table">
+        <thead><tr><th>Fecha</th><th>Descripción</th><th></th></tr></thead>
+        <tbody>
+          {{range .Sesiones}}
+          <tr>
+            <td style="white-space:nowrap">{{formatFechaCorta .Fecha}}</td>
+            <td>{{if .Descripcion}}{{.Descripcion}}{{else}}<span class="text-muted">Sin descripción</span>{{end}}</td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <a href="/admin/sesion/{{.ID}}/resultados" class="btn btn-secondary btn-sm">✏ Resultados</a>
+                <a href="/sesion/{{.ID}}" class="btn btn-secondary btn-sm">👁 Ver</a>
+              </div>
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+      {{end}}
+    </div>
+    {{end}}
+
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:1.25rem 1.5rem;border-bottom:0.5px solid var(--border)">
+        <span class="section-title" style="margin:0;border:none;padding:0">Jugadores</span>
+      </div>
+      {{if not .Jugadores}}
+      <div class="empty-state" style="padding:2rem"><p>Sin jugadores registrados</p></div>
+      {{else}}
+      <table class="admin-table">
+        <thead><tr><th>Jugador</th><th></th></tr></thead>
+        <tbody>
+          {{range .Jugadores}}
+          <tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="avatar avatar-sm" style="background-color:{{.Color}}18;border-color:{{.Color}}30">{{renderAvatar .Avatar}}</div>
+                {{.Nombre}}
+              </div>
+            </td>
+            <td><a href="/admin/jugador/{{.ID}}/editar" class="btn btn-secondary btn-sm">✏ Editar</a></td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+      {{end}}
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal: Selector de emojis -->
+<div id="modal-emoji" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <strong style="font-size:14px">Elige un icono</strong>
+      <button type="button" onclick="cerrarSelectorEmoji()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-muted);line-height:1">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">
+      {{range iconosJugador}}
+      <button type="button" onclick="seleccionarIcono('{{.Clase}}')"
+        style="background:var(--bg-surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px" title="{{.Nombre}}">
+        <i class="ms {{.Clase}}" style="font-size:24px;color:var(--text)" aria-hidden="true"></i>
+        <span style="font-size:8px;color:var(--text-faint);line-height:1.1">{{.Nombre}}</span>
+      </button>
+      {{end}}
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Borrar temporada con confirmación de contraseña -->
+<div id="modal-borrar-temporada" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--radius);padding:1.5rem;max-width:400px;width:100%">
+    <h3 style="font-size:15px;font-weight:600;margin-bottom:8px">Borrar temporada <span id="borrar-anio"></span></h3>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;line-height:1.5">
+      Esta acción borrará la temporada y <strong>todas sus sesiones, resultados y estadísticas</strong>. Es irreversible.
+    </p>
+    <form method="POST" action="/admin/temporada/borrar">
+      <input type="hidden" name="id" id="borrar-id" value="">
+      <div class="form-group">
+        <label class="form-label">Contraseña de admin</label>
+        <input type="password" name="password" class="form-input" placeholder="Confirma tu contraseña" required autofocus>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" class="btn btn-secondary" onclick="cerrarModalBorrarTemporada()">Cancelar</button>
+        <button type="submit" class="btn btn-danger">Borrar definitivamente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Farewell — borrar absolutamente todos los datos -->
+<div id="modal-farewell" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--bg-card);border:1px solid #a0391a;border-radius:var(--radius);padding:1.5rem;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+    <h3 style="font-size:16px;font-weight:600;margin-bottom:10px;color:#a0391a">⚠️ Farewell — Borrar todos los datos</h3>
+
+    <div style="background:rgba(160,57,26,0.08);border:0.5px solid rgba(160,57,26,0.25);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px">
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin:0">
+        Esta operación borrará <strong>permanentemente</strong> y sin posibilidad de recuperación:
+      </p>
+      <ul style="font-size:12px;color:var(--text-muted);line-height:1.7;margin:6px 0 0;padding-left:18px">
+        <li>Todos los <strong>jugadores</strong></li>
+        <li>Todas las <strong>temporadas</strong> (activas y cerradas)</li>
+        <li>Todas las <strong>sesiones</strong> y sus <strong>resultados</strong></li>
+        <li>Todas las <strong>estadísticas</strong> derivadas</li>
+      </ul>
+      <p style="font-size:12px;color:var(--text-muted);line-height:1.6;margin:8px 0 0">
+        La aplicación quedará como recién instalada. Se recomienda <a href="/admin/exportar" style="color:var(--text);text-decoration:underline">exportar un backup JSON</a> antes de continuar.
+      </p>
+    </div>
+
+    <form method="POST" action="/admin/farewell">
+      <div class="form-group">
+        <label class="form-label">Contraseña de admin</label>
+        <input type="password" name="password" class="form-input" placeholder="Tu contraseña de admin" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Para confirmar, escribe la palabra <code style="background:var(--bg-surface);padding:1px 6px;border-radius:3px;font-family:'SF Mono','Courier New',monospace;font-size:11px">FAREWELL</code></label>
+        <input type="text" name="confirmacion" class="form-input" placeholder="FAREWELL" required pattern="FAREWELL"
+          autocomplete="off" autocapitalize="characters">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button type="button" class="btn btn-secondary" onclick="cerrarModalFarewell()">Cancelar</button>
+        <button type="submit" class="btn btn-danger">Borrar todo definitivamente</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Selector de iconos Mana Font
+var emojiTargetId = null;
+function abrirSelectorEmoji(inputId) {
+  emojiTargetId = inputId;
+  document.getElementById('modal-emoji').style.display = 'flex';
+}
+function cerrarSelectorEmoji() {
+  document.getElementById('modal-emoji').style.display = 'none';
+  emojiTargetId = null;
+}
+function seleccionarIcono(clase) {
+  if (emojiTargetId) {
+    var input = document.getElementById(emojiTargetId);
+    if (input) input.value = clase;
+    // Actualizar el display visual
+    var display = document.getElementById(emojiTargetId.replace('-input', '-display'));
+    if (display) display.innerHTML = '<i class="ms ' + clase + '" aria-hidden="true"></i>';
+  }
+  cerrarSelectorEmoji();
+}
+
+// Borrar temporada
+function abrirModalBorrarTemporada(id, anio) {
+  document.getElementById('borrar-id').value = id;
+  document.getElementById('borrar-anio').textContent = anio;
+  document.getElementById('modal-borrar-temporada').style.display = 'flex';
+}
+function cerrarModalBorrarTemporada() {
+  document.getElementById('modal-borrar-temporada').style.display = 'none';
+}
+
+// Farewell — borrar todos los datos
+function abrirModalFarewell() {
+  document.getElementById('modal-farewell').style.display = 'flex';
+}
+function cerrarModalFarewell() {
+  document.getElementById('modal-farewell').style.display = 'none';
+}
+
+// Cerrar modales al hacer click fuera
+document.getElementById('modal-emoji').addEventListener('click', function(e) {
+  if (e.target === this) cerrarSelectorEmoji();
+});
+document.getElementById('modal-borrar-temporada').addEventListener('click', function(e) {
+  if (e.target === this) cerrarModalBorrarTemporada();
+});
+document.getElementById('modal-farewell').addEventListener('click', function(e) {
+  if (e.target === this) cerrarModalFarewell();
+});
+</script>
+
+</main>
+<script src="/static/js/main.js"></script>
+</body>
+</html>{{end}}

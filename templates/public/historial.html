@@ -26,10 +26,32 @@
 {{else}}
 <div>
   {{range .Sesiones}}
+  {{$ganador := index $.Ganadores .ID}}
   <a href="/sesion/{{.ID}}" class="sesion-item">
     <div class="sesion-fecha">{{formatFechaCorta .Fecha}}</div>
-    <div>
+    <div style="flex:1;min-width:0">
       <div class="sesion-desc">{{if .Descripcion}}{{.Descripcion}}{{else}}Sesión del {{formatFecha .Fecha}}{{end}}</div>
+      {{if $ganador}}
+      <div style="font-size:11px;color:var(--text-faint);margin-top:3px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        {{if $ganador.Empate}}
+          <span style="color:var(--text-muted)">Empate:</span>
+          {{range $ganador.Ganadores}}
+          <span style="display:inline-flex;align-items:center;gap:3px">
+            <span style="font-size:12px">{{renderAvatar .Avatar}}</span>{{.Nombre}}
+          </span>
+          {{end}}
+          <span>({{$ganador.Victorias}}V)</span>
+        {{else}}
+          <span style="color:var(--text-muted)">Ganador:</span>
+          {{range $ganador.Ganadores}}
+          <span style="display:inline-flex;align-items:center;gap:3px">
+            <span style="font-size:12px">{{renderAvatar .Avatar}}</span><strong>{{.Nombre}}</strong>
+          </span>
+          {{end}}
+          <span>({{$ganador.Victorias}}V)</span>
+        {{end}}
+      </div>
+      {{end}}
     </div>
     <div class="sesion-arrow">→</div>
   </a>

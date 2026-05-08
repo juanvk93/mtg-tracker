@@ -83,9 +83,16 @@ func (a *AppHandlers) Historial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Calcular el ganador de cada sesión
+	ganadores := make(map[int]*db.GanadorSesion)
+	for _, s := range sesiones {
+		ganadores[s.ID] = db.ObtenerGanadorSesion(a.DB, s.ID)
+	}
+
 	a.renderizar(w, "historial.html", map[string]interface{}{
 		"Temporada": temporada,
 		"Sesiones":  sesiones,
+		"Ganadores": ganadores,
 		"SinDatos":  len(sesiones) == 0,
 	})
 }

@@ -253,6 +253,61 @@ func ActualizarDescripcionSesion(db *sql.DB, id int, descripcion string) error {
 	return err
 }
 
+// GanadorSesion contiene info del ganador (o ganadores en caso de empate) de una sesión
+type GanadorSesion struct {
+	Ganadores []models.Jugador // uno o más si hay empate
+	Victorias int              // victorias del ganador(es)
+	Empate    bool             // true si hay empate en primer lugar
+}
+
+// ObtenerGanadorSesion calcula quién ganó una sesión (más victorias).
+// Si hay empate en victorias, devuelve todos los empatados.
+// Devuelve nil si la sesión no tiene resultados.
+func ObtenerGanadorSesion(database *sql.DB, sesionID int) *GanadorSesion {
+	rows, err := database.Query(`
+		SELECT r.jugador_id, j.nombre, j.color, j.avatar, COUNT(v.id) as vict
+		FROM resultados r
+		JOIN jugadores j ON j.id = r.jugador_id
+		LEFT JOIN victorias v ON v.resultado_id = r.id
+		WHERE r.sesion_id = $1
+		GROUP BY r.jugador_id, j.nombre, j.color, j.avatar
+		ORDER BY vict DESC`, sesionID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	type jugadorVict struct {
+		jugador   models.Jugador
+		victorias int
+	}
+	var lista []jugadorVict
+	for rows.Next() {
+		var jv jugadorVict
+		rows.Scan(&jv.jugador.ID, &jv.jugador.Nombre, &jv.jugador.Color, &jv.jugador.Avatar, &jv.victorias)
+		lista = append(lista, jv)
+	}
+
+	if len(lista) == 0 {
+		return nil
+	}
+
+	maxVict := lista[0].victorias
+	if maxVict == 0 {
+		return nil // nadie ganó ninguna partida
+	}
+
+	resultado := &GanadorSesion{Victorias: maxVict}
+	for _, jv := range lista {
+		if jv.victorias == maxVict {
+			resultado.Ganadores = append(resultado.Ganadores, jv.jugador)
+		}
+	}
+	resultado.Empate = len(resultado.Ganadores) > 1
+
+	return resultado
+}
+
 // CrearSesion inserta una nueva sesión de draft, devuelve el ID generado
 func CrearSesion(db *sql.DB, temporadaID int, fecha time.Time, descripcion string) (int64, error) {
 	var id int64
@@ -472,7 +527,9 @@ func ObtenerRanking(db *sql.DB, temporadaID int) ([]models.FilaRanking, error) {
 func calcularFilaRanking(db *sql.DB, j models.Jugador, temporadaID int) (models.FilaRanking, error) {
 	fila := models.FilaRanking{Jugador: j}
 
-	// Victorias totales en la temporada
+	// Victorias totales: partidas individuales que este jugador ganó en la temporada.
+	// Cuenta registros en 'victorias' donde el resultado pertenece a este jugador
+	// y la sesión del resultado está en la temporada.
 	err := db.QueryRow(`
 		SELECT COUNT(*)
 		FROM victorias v
@@ -483,12 +540,15 @@ func calcularFilaRanking(db *sql.DB, j models.Jugador, temporadaID int) (models.
 		return fila, err
 	}
 
-	// Derrotas totales en la temporada (partidas en las que otro le venció)
+	// Derrotas totales: partidas individuales que este jugador perdió en la temporada.
+	// Busca registros en 'victorias' donde este jugador es el rival_id (fue vencido),
+	// y filtra por sesiones de la temporada a través de la sesión donde ESTE jugador participó.
 	err = db.QueryRow(`
 		SELECT COUNT(*)
 		FROM victorias v
-		JOIN resultados r ON r.id = v.resultado_id
-		JOIN sesiones s ON s.id = r.sesion_id
+		JOIN resultados r_ganador ON r_ganador.id = v.resultado_id
+		JOIN resultados r_perdedor ON r_perdedor.sesion_id = r_ganador.sesion_id AND r_perdedor.jugador_id = $1
+		JOIN sesiones s ON s.id = r_perdedor.sesion_id
 		WHERE v.rival_id = $1 AND s.temporada_id = $2`, j.ID, temporadaID).Scan(&fila.Derrotas)
 	if err != nil {
 		return fila, err
@@ -556,44 +616,62 @@ func calcularFilaRanking(db *sql.DB, j models.Jugador, temporadaID int) (models.
 
 // ========== ESTADÍSTICAS ==========
 
-// ObtenerEstadisticasColores devuelve el win rate por color de un jugador en la temporada activa
+// ObtenerEstadisticasColores devuelve el win rate por color de un jugador en la temporada.
+// Para cada color: itera los resultados donde usó ese color y suma V y D directamente.
+// Win rate = victorias / (victorias + derrotas) × 100.
 func ObtenerEstadisticasColores(db *sql.DB, jugadorID, temporadaID int) ([]models.EstadisticaColor, error) {
 	colores := []string{"W", "U", "B", "R", "G"}
 	var stats []models.EstadisticaColor
 
 	for _, color := range colores {
-		var ec models.EstadisticaColor
-		ec.Color = color
-		ec.Nombre = models.NombreColor(color)
-
-		// Partidas jugadas con este color
-		err := db.QueryRow(`
-			SELECT COUNT(DISTINCT r.id)
+		// Obtener los resultados donde este jugador usó este color
+		rows, err := db.Query(`
+			SELECT r.id, r.sesion_id
 			FROM resultados r
 			JOIN colores_jugados cj ON cj.resultado_id = r.id
 			JOIN sesiones s ON s.id = r.sesion_id
 			WHERE r.jugador_id = $1 AND cj.color = $2 AND s.temporada_id = $3`,
-			jugadorID, color, temporadaID).Scan(&ec.Partidas)
-		if err != nil || ec.Partidas == 0 {
-			continue
-		}
-
-		// Victorias con este color
-		err = db.QueryRow(`
-			SELECT COUNT(v.id)
-			FROM victorias v
-			JOIN resultados r ON r.id = v.resultado_id
-			JOIN colores_jugados cj ON cj.resultado_id = r.id
-			JOIN sesiones s ON s.id = r.sesion_id
-			WHERE r.jugador_id = $1 AND cj.color = $2 AND s.temporada_id = $3`,
-			jugadorID, color, temporadaID).Scan(&ec.Victorias)
+			jugadorID, color, temporadaID)
 		if err != nil {
 			return nil, err
 		}
 
-		if ec.Partidas > 0 {
-			ec.WinRate = float64(ec.Victorias) / float64(ec.Partidas) * 100
+		type par struct{ resultadoID, sesionID int }
+		var pares []par
+		for rows.Next() {
+			var p par
+			rows.Scan(&p.resultadoID, &p.sesionID)
+			pares = append(pares, p)
 		}
+		rows.Close()
+
+		if len(pares) == 0 {
+			continue
+		}
+
+		var ec models.EstadisticaColor
+		ec.Color = color
+		ec.Nombre = models.NombreColor(color)
+
+		for _, p := range pares {
+			var v int
+			db.QueryRow(`SELECT COUNT(*) FROM victorias WHERE resultado_id=$1`, p.resultadoID).Scan(&v)
+			ec.Victorias += v
+
+			var d int
+			db.QueryRow(`
+				SELECT COUNT(*)
+				FROM victorias v2
+				JOIN resultados r2 ON r2.id = v2.resultado_id
+				WHERE r2.sesion_id = $1 AND v2.rival_id = $2`,
+				p.sesionID, jugadorID).Scan(&d)
+			ec.Partidas += v + d
+		}
+
+		if ec.Partidas == 0 {
+			continue
+		}
+		ec.WinRate = float64(ec.Victorias) / float64(ec.Partidas) * 100
 		stats = append(stats, ec)
 	}
 
@@ -638,34 +716,63 @@ func ObtenerHeadToHead(db *sql.DB, jugador1ID, jugador2ID int) (models.HeadToHea
 	return h2h, nil
 }
 
-// ObtenerColorMasWinRate devuelve el color con mejor win rate del grupo en la temporada activa
+// ObtenerColorMasWinRate devuelve el color con mejor win rate del grupo en la temporada activa.
+// Para cada color: suma las victorias y derrotas de todos los jugadores que lo usaron.
+// Win rate = victorias totales / (victorias + derrotas totales) × 100.
 func ObtenerColorMasWinRate(db *sql.DB, temporadaID int) (string, float64) {
 	colores := []string{"W", "U", "B", "R", "G"}
 	mejorColor := ""
 	mejorWR := -1.0
 
 	for _, color := range colores {
-		var partidas, victorias int
-		db.QueryRow(`
-			SELECT COUNT(DISTINCT r.id)
+		// Obtener todos los resultados donde se jugó este color en la temporada
+		rows, err := db.Query(`
+			SELECT r.id, r.jugador_id, r.sesion_id
 			FROM resultados r
 			JOIN colores_jugados cj ON cj.resultado_id = r.id
 			JOIN sesiones s ON s.id = r.sesion_id
-			WHERE cj.color = $1 AND s.temporada_id = $2`, color, temporadaID).Scan(&partidas)
-
-		if partidas < 3 {
+			WHERE cj.color = $1 AND s.temporada_id = $2`, color, temporadaID)
+		if err != nil {
 			continue
 		}
 
-		db.QueryRow(`
-			SELECT COUNT(v.id)
-			FROM victorias v
-			JOIN resultados r ON r.id = v.resultado_id
-			JOIN colores_jugados cj ON cj.resultado_id = r.id
-			JOIN sesiones s ON s.id = r.sesion_id
-			WHERE cj.color = $1 AND s.temporada_id = $2`, color, temporadaID).Scan(&victorias)
+		type par struct{ resultadoID, jugadorID, sesionID int }
+		var pares []par
+		for rows.Next() {
+			var p par
+			rows.Scan(&p.resultadoID, &p.jugadorID, &p.sesionID)
+			pares = append(pares, p)
+		}
+		rows.Close()
 
-		wr := float64(victorias) / float64(partidas) * 100
+		if len(pares) < 2 { // mínimo 2 jugadores usando el color
+			continue
+		}
+
+		var victorias, derrotas int
+		for _, p := range pares {
+			// Victorias de este jugador en esta sesión
+			var v int
+			db.QueryRow(`SELECT COUNT(*) FROM victorias WHERE resultado_id=$1`, p.resultadoID).Scan(&v)
+			victorias += v
+
+			// Derrotas de este jugador en esta sesión
+			var d int
+			db.QueryRow(`
+				SELECT COUNT(*)
+				FROM victorias v2
+				JOIN resultados r2 ON r2.id = v2.resultado_id
+				WHERE r2.sesion_id = $1 AND v2.rival_id = $2`,
+				p.sesionID, p.jugadorID).Scan(&d)
+			derrotas += d
+		}
+
+		total := victorias + derrotas
+		if total < 4 {
+			continue
+		}
+
+		wr := float64(victorias) / float64(total) * 100
 		if wr > mejorWR {
 			mejorWR = wr
 			mejorColor = color

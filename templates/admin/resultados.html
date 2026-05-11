@@ -97,9 +97,22 @@ var datosExistentes = { {{range .Detalle.Resultados}}
 };
 
 document.addEventListener('DOMContentLoaded', function() {
+  // Paso 1: Activar todos los jugadores de la sesión SIN actualizar rivales
+  // (desactivamos temporalmente la actualización de rivales para evitar que
+  // se desmarquen checkboxes durante la pre-carga secuencial)
+  var _actualizarOriginal = window.actualizarRivalesVisibles;
+  window.actualizarRivalesVisibles = function() {}; // noop temporal
+
   for (var jugID in datosExistentes) {
     var btn = document.getElementById('btn-jug-' + jugID);
     if (btn) toggleJugadorSesion(parseInt(jugID), btn);
+  }
+
+  // Restaurar la función original
+  window.actualizarRivalesVisibles = _actualizarOriginal;
+
+  // Paso 2: Marcar victorias y colores (ahora todos los jugadores ya están en sesión)
+  for (var jugID in datosExistentes) {
     var datos = datosExistentes[jugID];
     datos.victorias.forEach(function(rivalID) {
       var input = document.querySelector('input[name="victoria_' + jugID + '"][value="' + rivalID + '"]');
@@ -110,6 +123,9 @@ document.addEventListener('DOMContentLoaded', function() {
       if (input) { input.checked = true; var label = input.closest('.mana-checkbox'); if (label) label.classList.add('checked'); }
     });
   }
+
+  // Paso 3: Ahora sí, actualizar visibilidad de rivales una sola vez
+  actualizarRivalesVisibles();
 });
 </script>
 

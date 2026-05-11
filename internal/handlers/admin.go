@@ -333,18 +333,27 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 
 	jugadoresSesion := strings.Split(jugadoresStr, ",")
 
-	// Limpiar resultados anteriores
-	db.EliminarResultadosSesion(a.DB, sesionID)
-
-	// Guardar resultado de cada jugador
+	// Construir el conjunto de IDs de jugadores que van a estar en la sesión
+	jugadoresNuevos := make(map[int]bool)
 	for _, jugIDStr := range jugadoresSesion {
 		jugIDStr = strings.TrimSpace(jugIDStr)
-		jugID, err := strconv.Atoi(jugIDStr)
-		if err != nil {
-			continue
+		if jugID, err := strconv.Atoi(jugIDStr); err == nil && jugID > 0 {
+			jugadoresNuevos[jugID] = true
 		}
+	}
 
-		// Victorias: victoria_JugID[] = IDs de rivales vencidos
+	// Borrar solo los resultados de jugadores que YA NO están en la sesión
+	// (los que sí están se actualizarán individualmente en GuardarResultadoSesion)
+	jugadoresAnteriores, _ := db.ObtenerJugadoresEnSesion(a.DB, sesionID)
+	for _, jugID := range jugadoresAnteriores {
+		if !jugadoresNuevos[jugID] {
+			// Este jugador ya no juega: borrar su resultado
+			a.DB.Exec(`DELETE FROM resultados WHERE sesion_id=$1 AND jugador_id=$2`, sesionID, jugID)
+		}
+	}
+
+	// Guardar/actualizar resultado de cada jugador activo
+	for jugID := range jugadoresNuevos {
 		victoriasKey := fmt.Sprintf("victoria_%d", jugID)
 		victoriasStrs := r.Form[victoriasKey]
 		var victorias []int
@@ -354,7 +363,6 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 			}
 		}
 
-		// Colores jugados: color_JugID[] = códigos de colores
 		coloresKey := fmt.Sprintf("color_%d", jugID)
 		colores := r.Form[coloresKey]
 

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(unzip -l mtg-tracker.zip)",
+      "Bash(unzip -o mtg-tracker.zip)"
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+{{define "historial.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Historial — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+{{template "nav" .}}
+<main class="main">
+
+<div class="page-header">
+  <h1 class="page-title">Historial de sesiones</h1>
+  {{if .Temporada}}
+  <p class="page-subtitle">Temporada {{.Temporada.Anio}}</p>
+  {{end}}
+</div>
+
+{{if .SinDatos}}
+<div class="empty-state">
+  <div class="empty-icon">📅</div>
+  <div class="empty-title">Sin sesiones registradas</div>
+  <p>Crea la primera sesión de draft desde el <a href="/admin" style="color:var(--text);text-decoration:underline">panel de admin</a>.</p>
+</div>
+{{else}}
+<div>
+  {{range .Sesiones}}
+  {{$ganador := index $.Ganadores .ID}}
+  <a href="/sesion/{{.ID}}" class="sesion-item">
+    <div class="sesion-fecha">{{formatFechaCorta .Fecha}}</div>
+    <div style="flex:1;min-width:0">
+      <div class="sesion-desc">{{if .Descripcion}}{{.Descripcion}}{{else}}Sesión del {{formatFecha .Fecha}}{{end}}</div>
+      {{if $ganador}}
+      <div style="font-size:11px;color:var(--text-faint);margin-top:3px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        {{if $ganador.Empate}}
+          <span style="color:var(--text-muted)">Empate:</span>
+          {{range $ganador.Ganadores}}
+          <span style="display:inline-flex;align-items:center;gap:3px">
+            <span style="font-size:12px">{{renderAvatar .Avatar}}</span>{{.Nombre}}
+          </span>
+          {{end}}
+          <span>({{$ganador.Victorias}}V)</span>
+        {{else}}
+          <span style="color:var(--text-muted)">Ganador:</span>
+          {{range $ganador.Ganadores}}
+          <span style="display:inline-flex;align-items:center;gap:3px">
+            <span style="font-size:12px">{{renderAvatar .Avatar}}</span><strong>{{.Nombre}}</strong>
+          </span>
+          {{end}}
+          <span>({{$ganador.Victorias}}V)</span>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+    <div class="sesion-arrow">→</div>
+  </a>
+  {{end}}
+</div>
+{{end}}
+
+</main>
+<script src="/static/js/main.js"></script>
+</body>
+</html>{{end}}

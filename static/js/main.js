@@ -2,6 +2,11 @@
 
 // Activar/desactivar estilo visual de checkboxes personalizados
 document.addEventListener('DOMContentLoaded', () => {
+  // Registrar el service worker (PWA instalable + carga rápida)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+  }
+
   // Tablas ordenables (ranking) y modo matriz de resultados
   initSortableTables();
   initMatrizResultados();
@@ -114,6 +119,19 @@ function actualizarRivalesVisibles() {
   });
 }
 
+// === TEMA CLARO/OSCURO ===
+// Alterna el tema y lo guarda. El script inline del <head> lo aplica antes de pintar.
+function toggleTema() {
+  const root = document.documentElement;
+  let actual = root.dataset.theme;
+  if (!actual) {
+    actual = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  const nuevo = actual === 'dark' ? 'light' : 'dark';
+  root.dataset.theme = nuevo;
+  try { localStorage.setItem('tema', nuevo); } catch (e) {}
+}
+
 // === ORDENAR TABLAS POR COLUMNA ===
 // Cualquier tabla .sortable-table cuyas <th> tengan la clase .sortable se ordena
 // al hacer clic en la cabecera. Usa data-val en las celdas para números/porcentajes.
@@ -186,8 +204,8 @@ function initMatrizResultados() {
       inp.disabled = !ok;
       if (!ok) inp.checked = false;
     });
-    // Colores: habilitados solo si la fila juega
-    form.querySelectorAll('.matriz-color-input').forEach(function(inp) {
+    // Colores y notas: habilitados solo si la fila juega
+    form.querySelectorAll('.matriz-color-input, .matriz-notas').forEach(function(inp) {
       const rowId = inp.closest('tr').dataset.jug;
       inp.disabled = !juega[rowId];
     });

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{.Jugador.Nombre}} — MTG Draft Tracker</title>
   <link rel="stylesheet" href="/static/css/main.css">
+  {{template "head" .}}
 </head>
 <body>
 {{template "nav" .}}
@@ -165,6 +166,7 @@
               {{if .Descripcion}}{{.Descripcion}}{{else}}{{formatFechaCorta .Fecha}}{{end}}
             </a>
             <div style="font-size:11px;color:var(--text-faint)">{{formatFechaCorta .Fecha}}</div>
+            {{if .Notas}}<div style="font-size:11px;color:var(--text-muted);font-style:italic;margin-top:2px">📝 {{.Notas}}</div>{{end}}
           </td>
           <td>
             <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:center">

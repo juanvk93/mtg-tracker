@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.5.0"
+const Version = "1.6.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,20 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.6.0",
+			Fecha:   "2026-07-05",
+			Cambios: []string{
+				"Premios de temporada en Estadísticas: MVP, Villano, Mejor racha y Cabeza de turco",
+				"Gráfica de evolución del win rate acumulado por sesión",
+				"Meta de colores del grupo: win rate por color de la temporada",
+				"Jugadores inactivos: se pueden desactivar sin borrarlos (mantienen su histórico y salen de los formularios)",
+				"Arquetipo/notas por jugador en cada draft, visibles en la sesión y en el perfil",
+				"Modo TV: ranking a pantalla completa con auto-refresco para proyectarlo en las quedadas",
+				"Tema claro/oscuro con botón manual (además del automático del sistema)",
+				"La aplicación es instalable como PWA (icono en el móvil y carga rápida sin conexión)",
+			},
+		},
 		{
 			Version: "1.5.0",
 			Fecha:   "2026-07-05",

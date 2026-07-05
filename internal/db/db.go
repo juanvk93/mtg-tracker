@@ -84,6 +84,9 @@ func aplicarEsquema(db *sql.DB) error {
 			resultado_id INTEGER NOT NULL REFERENCES resultados(id) ON DELETE CASCADE,
 			color        TEXT NOT NULL CHECK(color IN ('W', 'U', 'B', 'R', 'G'))
 		)`,
+		// Migraciones idempotentes de columnas añadidas después (pgx admite ADD COLUMN IF NOT EXISTS)
+		`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT true`,
+		`ALTER TABLE resultados ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_sesiones_temporada ON sesiones(temporada_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_resultados_sesion ON resultados(sesion_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_resultados_jugador ON resultados(jugador_id)`,

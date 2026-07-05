@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{if .Detalle.Sesion.Descripcion}}{{.Detalle.Sesion.Descripcion}}{{else}}Sesión{{end}} — MTG Draft Tracker</title>
   <link rel="stylesheet" href="/static/css/main.css">
+  {{template "head" .}}
 </head>
 <body>
 {{template "nav" .}}
@@ -79,6 +80,7 @@
     </div>
     {{end}}
   </div>
+  {{if .Notas}}<div class="resultado-notas">📝 {{.Notas}}</div>{{end}}
 </div>
 {{end}}
 {{end}}

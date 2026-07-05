@@ -29,6 +29,7 @@ type Jugador struct {
 	Nombre string
 	Color  string // color identificativo en hex (ej: "#e63946")
 	Avatar string // emoji o iniciales
+	Activo bool   // false = jugador retirado (mantiene histórico, sale de los formularios)
 }
 
 // ResultadoSesion representa el resultado de un jugador en una sesión
@@ -48,8 +49,9 @@ type FilaRanking struct {
 	Victorias   int
 	Derrotas    int
 	WinRate     float64
-	RachaActual int    // positivo = racha de victorias, negativo = derrotas
+	RachaActual int    // longitud de la racha actual (siempre >= 0)
 	RachaTipo   string // "W" o "L"
+	MejorRacha  int    // racha de victorias más larga de la temporada
 }
 
 // EstadisticaColor contiene estadísticas por color para un jugador
@@ -158,6 +160,7 @@ type DraftJugador struct {
 	Victorias   int
 	Derrotas    int
 	Colores     []string
+	Notas       string
 	Top         bool // fue quien más victorias tuvo esa sesión (empatado o en solitario)
 }
 
@@ -196,6 +199,7 @@ type ResultadoDetalle struct {
 	Victorias      []Jugador
 	Derrotas       []Jugador
 	Colores        []string
+	Notas          string // arquetipo/mazo o comentario libre de ese draft
 	TotalVictorias int
 	TotalDerrotas  int
 }

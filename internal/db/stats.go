@@ -703,7 +703,8 @@ func ObtenerHistorialJugador(db *sql.DB, jugadorID, temporadaID int) ([]models.D
 				JOIN resultados r3 ON r3.id = v.resultado_id
 				WHERE r3.sesion_id = s.id
 				GROUP BY r3.jugador_id
-			) m) AS maxvict
+			) m) AS maxvict,
+			r.notas
 		FROM sesiones s
 		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $1
 		WHERE s.temporada_id = $2
@@ -717,7 +718,7 @@ func ObtenerHistorialJugador(db *sql.DB, jugadorID, temporadaID int) ([]models.D
 	for rows.Next() {
 		var d models.DraftJugador
 		var maxVict int
-		if err := rows.Scan(&d.SesionID, &d.Fecha, &d.Descripcion, &d.Victorias, &d.Derrotas, &maxVict); err != nil {
+		if err := rows.Scan(&d.SesionID, &d.Fecha, &d.Descripcion, &d.Victorias, &d.Derrotas, &maxVict, &d.Notas); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -756,7 +757,7 @@ func ObtenerHistorialJugador(db *sql.DB, jugadorID, temporadaID int) ([]models.D
 	return drafts, cRows.Err()
 }
 
-// EvolucionFila es una fila de la evolución de victorias por sesión (para la gráfica).
+// EvolucionFila es una fila de la evolución por sesión (victorias y derrotas).
 type EvolucionFila struct {
 	JugadorID       int
 	Nombre          string
@@ -765,16 +766,20 @@ type EvolucionFila struct {
 	SesionID        int
 	Fecha           time.Time
 	VictoriasSesion int
+	DerrotasSesion  int
 }
 
-// ObtenerEvolucionVictorias devuelve, en orden cronológico, las victorias de cada
-// jugador en cada sesión de la temporada (para dibujar la evolución del ranking).
+// ObtenerEvolucionVictorias devuelve, en orden cronológico, las victorias y derrotas de
+// cada jugador en cada sesión de la temporada (para las gráficas de evolución).
 func ObtenerEvolucionVictorias(db *sql.DB, temporadaID int) ([]EvolucionFila, error) {
 	rows, err := db.Query(`
 		SELECT
 			j.id, j.nombre, j.color, j.avatar,
 			s.id, s.fecha,
-			(SELECT COUNT(*) FROM victorias v WHERE v.resultado_id = r.id) AS vict
+			(SELECT COUNT(*) FROM victorias v WHERE v.resultado_id = r.id) AS vict,
+			(SELECT COUNT(*) FROM victorias v2
+				JOIN resultados r2 ON r2.id = v2.resultado_id
+				WHERE r2.sesion_id = r.sesion_id AND v2.rival_id = r.jugador_id) AS derr
 		FROM resultados r
 		JOIN sesiones s ON s.id = r.sesion_id
 		JOIN jugadores j ON j.id = r.jugador_id
@@ -788,12 +793,62 @@ func ObtenerEvolucionVictorias(db *sql.DB, temporadaID int) ([]EvolucionFila, er
 	var filas []EvolucionFila
 	for rows.Next() {
 		var f EvolucionFila
-		if err := rows.Scan(&f.JugadorID, &f.Nombre, &f.Color, &f.Avatar, &f.SesionID, &f.Fecha, &f.VictoriasSesion); err != nil {
+		if err := rows.Scan(&f.JugadorID, &f.Nombre, &f.Color, &f.Avatar, &f.SesionID, &f.Fecha, &f.VictoriasSesion, &f.DerrotasSesion); err != nil {
 			return nil, err
 		}
 		filas = append(filas, f)
 	}
 	return filas, rows.Err()
+}
+
+// ObtenerColoresTemporada devuelve, por color, las estadísticas de TODO el grupo en la
+// temporada (veces jugado, victorias, derrotas y win rate normalizado). Para la "meta".
+func ObtenerColoresTemporada(db *sql.DB, temporadaID int) ([]models.EstadisticaColor, error) {
+	rows, err := db.Query(`
+		SELECT
+			cj.color,
+			COUNT(DISTINCT r.id)      AS veces,
+			COALESCE(SUM(pj.vict), 0) AS victorias,
+			COALESCE(SUM(pj.derr), 0) AS derrotas
+		FROM colores_jugados cj
+		JOIN resultados r ON r.id = cj.resultado_id
+		JOIN sesiones s ON s.id = r.sesion_id
+		JOIN (
+			SELECT r2.id,
+				(SELECT COUNT(*) FROM victorias v
+					WHERE v.resultado_id = r2.id) AS vict,
+				(SELECT COUNT(*) FROM victorias v2
+					JOIN resultados r3 ON r3.id = v2.resultado_id
+					WHERE r3.sesion_id = r2.sesion_id AND v2.rival_id = r2.jugador_id) AS derr
+			FROM resultados r2
+		) pj ON pj.id = r.id
+		WHERE s.temporada_id = $1
+		GROUP BY cj.color`, temporadaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	orden := map[string]int{"W": 0, "U": 1, "B": 2, "R": 3, "G": 4}
+	var stats []models.EstadisticaColor
+	for rows.Next() {
+		var ec models.EstadisticaColor
+		var derrotas int
+		if err := rows.Scan(&ec.Color, &ec.Veces, &ec.Victorias, &derrotas); err != nil {
+			return nil, err
+		}
+		ec.Nombre = models.NombreColor(ec.Color)
+		ec.Partidas = ec.Victorias + derrotas
+		if ec.Partidas > 0 {
+			ec.WinRate = float64(ec.Victorias) / float64(ec.Partidas) * 100
+		}
+		stats = append(stats, ec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(stats, func(i, j int) bool { return orden[stats[i].Color] < orden[stats[j].Color] })
+	return stats, nil
 }
 
 // ObtenerEstadisticasCompletasJugador agrupa todas las estadísticas avanzadas de un jugador

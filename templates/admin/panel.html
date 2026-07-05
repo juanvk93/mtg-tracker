@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Panel Admin — MTG Draft Tracker</title>
   <link rel="stylesheet" href="/static/css/main.css">
+  {{template "head" .}}
 </head>
 <body>
 {{template "nav" .}}
@@ -191,14 +192,24 @@
         <thead><tr><th>Jugador</th><th></th></tr></thead>
         <tbody>
           {{range .Jugadores}}
-          <tr>
+          <tr{{if not .Activo}} style="opacity:0.5"{{end}}>
             <td>
               <div style="display:flex;align-items:center;gap:10px">
                 <div class="avatar avatar-sm" style="background-color:{{.Color}}18;border-color:{{.Color}}30">{{renderAvatar .Avatar}}</div>
                 {{.Nombre}}
+                {{if not .Activo}}<span class="badge badge-cerrada" style="font-size:10px">inactivo</span>{{end}}
               </div>
             </td>
-            <td><a href="/admin/jugador/{{.ID}}/editar" class="btn btn-secondary btn-sm">✏ Editar</a></td>
+            <td>
+              <div style="display:flex;gap:6px;justify-content:flex-end">
+                <a href="/admin/jugador/{{.ID}}/editar" class="btn btn-secondary btn-sm">✏ Editar</a>
+                <form method="POST" action="/admin/jugador/toggle" style="display:inline">
+                  <input type="hidden" name="id" value="{{.ID}}">
+                  <input type="hidden" name="activo" value="{{if .Activo}}false{{else}}true{{end}}">
+                  <button type="submit" class="btn btn-secondary btn-sm">{{if .Activo}}Desactivar{{else}}Activar{{end}}</button>
+                </form>
+              </div>
+            </td>
           </tr>
           {{end}}
         </tbody>

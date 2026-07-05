@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Estadísticas — MTG Draft Tracker</title>
   <link rel="stylesheet" href="/static/css/main.css">
+  {{template "head" .}}
 </head>
 <body>
 {{template "nav" .}}
@@ -23,6 +24,25 @@
   <div class="empty-title">Sin datos disponibles</div>
 </div>
 {{else}}
+
+<!-- Premios de la temporada -->
+{{if .Premios}}
+<section class="mb-4">
+  <div class="section-title">🏅 Premios de la temporada</div>
+  <div class="premios-grid">
+    {{range .Premios}}
+    <div class="premio-card">
+      <div class="premio-emoji">{{.Emoji}}</div>
+      <div>
+        <div class="premio-titulo">{{.Titulo}}</div>
+        <div class="premio-jugador"><span style="font-size:14px">{{renderAvatar .Jugador.Avatar}}</span> {{.Jugador.Nombre}}</div>
+        <div class="premio-valor">{{.Valor}}</div>
+      </div>
+    </div>
+    {{end}}
+  </div>
+</section>
+{{end}}
 
 <!-- Evolución del ranking (victorias acumuladas por sesión) -->
 {{if not .GraficaEvolucion.Vacia}}
@@ -50,6 +70,62 @@
     <div class="chart-legend">
       {{range $g.Series}}
       <span class="legend-item"><span class="legend-swatch" style="background:{{.Jugador.Color}}"></span><span style="font-size:13px">{{renderAvatar .Jugador.Avatar}}</span> {{.Jugador.Nombre}} <strong>{{.Total}}</strong></span>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+<!-- Evolución del win rate acumulado (%) -->
+{{if not .GraficaWinRate.Vacia}}
+{{$w := .GraficaWinRate}}
+<section class="mb-4">
+  <div class="section-title">Evolución del win rate (%)</div>
+  <div class="card">
+    <div style="overflow-x:auto">
+      <svg class="chart-svg" viewBox="0 0 {{$w.Ancho}} {{$w.Alto}}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolución del win rate acumulado por sesión">
+        {{range $w.EjeY}}
+        <line x1="{{$w.PlotX0}}" y1="{{.Y}}" x2="{{$w.PlotX1}}" y2="{{.Y}}" class="chart-grid"/>
+        <text x="{{$w.PlotX0}}" y="{{.Y}}" dx="-6" dy="3" class="chart-axis" text-anchor="end">{{.Texto}}</text>
+        {{end}}
+        {{range $w.EjeX}}
+        <text x="{{.X}}" y="{{.Y}}" class="chart-axis" text-anchor="middle">{{.Texto}}</text>
+        {{end}}
+        {{range $s := $w.Series}}
+        <polyline points="{{$s.PuntosStr}}" fill="none" stroke="{{$s.Jugador.Color}}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        {{range $s.Puntos}}
+        <circle cx="{{.X}}" cy="{{.Y}}" r="2.6" fill="{{$s.Jugador.Color}}"/>
+        {{end}}
+        {{end}}
+      </svg>
+    </div>
+    <div class="chart-legend">
+      {{range $w.Series}}
+      <span class="legend-item"><span class="legend-swatch" style="background:{{.Jugador.Color}}"></span><span style="font-size:13px">{{renderAvatar .Jugador.Avatar}}</span> {{.Jugador.Nombre}} <strong>{{.Total}}%</strong></span>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
+
+<!-- Meta de colores del grupo: win rate por color -->
+{{if .ColoresMeta}}
+<section class="mb-4">
+  <div class="section-title">Meta de colores · win rate del grupo</div>
+  <div class="card">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      {{range .ColoresMeta}}
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="mana-badge mana-badge-{{.Color}}" style="width:90px;justify-content:center;font-size:11px">
+          {{emojiColor .Color}} {{.Nombre}}
+        </span>
+        <div class="wr-bar-track" style="flex:1">
+          <div class="wr-bar-fill" style="width:{{redondear .WinRate}}%"></div>
+        </div>
+        <span style="font-size:12px;color:var(--text-muted);width:120px;text-align:right;white-space:nowrap">
+          {{formatPct .WinRate}} · {{.Veces}} draft{{if ne .Veces 1}}s{{end}}
+        </span>
+      </div>
       {{end}}
     </div>
   </div>

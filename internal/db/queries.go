@@ -14,7 +14,7 @@ import (
 
 // ObtenerJugadores devuelve todos los jugadores ordenados por nombre
 func ObtenerJugadores(db *sql.DB) ([]models.Jugador, error) {
-	rows, err := db.Query(`SELECT id, nombre, color, avatar FROM jugadores ORDER BY nombre`)
+	rows, err := db.Query(`SELECT id, nombre, color, avatar, activo FROM jugadores ORDER BY nombre`)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +23,26 @@ func ObtenerJugadores(db *sql.DB) ([]models.Jugador, error) {
 	var jugadores []models.Jugador
 	for rows.Next() {
 		var j models.Jugador
-		if err := rows.Scan(&j.ID, &j.Nombre, &j.Color, &j.Avatar); err != nil {
+		if err := rows.Scan(&j.ID, &j.Nombre, &j.Color, &j.Avatar, &j.Activo); err != nil {
+			return nil, err
+		}
+		jugadores = append(jugadores, j)
+	}
+	return jugadores, nil
+}
+
+// ObtenerJugadoresActivos devuelve solo los jugadores activos (para los formularios).
+func ObtenerJugadoresActivos(db *sql.DB) ([]models.Jugador, error) {
+	rows, err := db.Query(`SELECT id, nombre, color, avatar, activo FROM jugadores WHERE activo = true ORDER BY nombre`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jugadores []models.Jugador
+	for rows.Next() {
+		var j models.Jugador
+		if err := rows.Scan(&j.ID, &j.Nombre, &j.Color, &j.Avatar, &j.Activo); err != nil {
 			return nil, err
 		}
 		jugadores = append(jugadores, j)
@@ -34,9 +53,15 @@ func ObtenerJugadores(db *sql.DB) ([]models.Jugador, error) {
 // ObtenerJugador devuelve un jugador por ID
 func ObtenerJugador(db *sql.DB, id int) (models.Jugador, error) {
 	var j models.Jugador
-	err := db.QueryRow(`SELECT id, nombre, color, avatar FROM jugadores WHERE id = $1`, id).
-		Scan(&j.ID, &j.Nombre, &j.Color, &j.Avatar)
+	err := db.QueryRow(`SELECT id, nombre, color, avatar, activo FROM jugadores WHERE id = $1`, id).
+		Scan(&j.ID, &j.Nombre, &j.Color, &j.Avatar, &j.Activo)
 	return j, err
+}
+
+// CambiarEstadoJugador activa o desactiva un jugador
+func CambiarEstadoJugador(db *sql.DB, id int, activo bool) error {
+	_, err := db.Exec(`UPDATE jugadores SET activo=$1 WHERE id=$2`, activo, id)
+	return err
 }
 
 // CrearJugador inserta un nuevo jugador
@@ -326,7 +351,7 @@ func CrearSesion(db *sql.DB, temporadaID int, fecha time.Time, descripcion strin
 
 // GuardarResultadoSesion guarda el resultado completo de un jugador en una sesión.
 // Usa una transacción para asegurar consistencia.
-func GuardarResultadoSesion(db *sql.DB, sesionID, jugadorID int, victorias, derrotas []int, colores []string) error {
+func GuardarResultadoSesion(db *sql.DB, sesionID, jugadorID int, victorias, derrotas []int, colores []string, notas string) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -347,8 +372,8 @@ func GuardarResultadoSesion(db *sql.DB, sesionID, jugadorID int, victorias, derr
 	// Insertar resultado principal con RETURNING id
 	var nuevoID int64
 	err = tx.QueryRow(
-		`INSERT INTO resultados (sesion_id, jugador_id) VALUES ($1, $2) RETURNING id`,
-		sesionID, jugadorID,
+		`INSERT INTO resultados (sesion_id, jugador_id, notas) VALUES ($1, $2, $3) RETURNING id`,
+		sesionID, jugadorID, notas,
 	).Scan(&nuevoID)
 	if err != nil {
 		return err
@@ -401,7 +426,7 @@ func ObtenerDetalleSesion(db *sql.DB, sesionID int) (models.SesionDetalle, error
 
 	// 2) Participantes (resultados + datos del jugador)
 	rows, err := db.Query(`
-		SELECT j.id, j.nombre, j.color, j.avatar
+		SELECT j.id, j.nombre, j.color, j.avatar, r.notas
 		FROM resultados r
 		JOIN jugadores j ON j.id = r.jugador_id
 		WHERE r.sesion_id = $1
@@ -414,7 +439,7 @@ func ObtenerDetalleSesion(db *sql.DB, sesionID int) (models.SesionDetalle, error
 	jugadores := map[int]models.Jugador{} // jugadorID -> jugador (para resolver rivales)
 	for rows.Next() {
 		var rd models.ResultadoDetalle
-		if err := rows.Scan(&rd.Jugador.ID, &rd.Jugador.Nombre, &rd.Jugador.Color, &rd.Jugador.Avatar); err != nil {
+		if err := rows.Scan(&rd.Jugador.ID, &rd.Jugador.Nombre, &rd.Jugador.Color, &rd.Jugador.Avatar, &rd.Notas); err != nil {
 			rows.Close()
 			return detalle, err
 		}
@@ -564,6 +589,7 @@ func ObtenerRanking(db *sql.DB, temporadaID int) ([]models.FilaRanking, error) {
 			a.fila.WinRate = float64(a.fila.Victorias) / float64(a.fila.Partidas) * 100
 		}
 		a.fila.RachaActual, a.fila.RachaTipo = calcularRacha(a.historial)
+		a.fila.MejorRacha = calcularMejorRacha(a.historial)
 		ranking = append(ranking, a.fila)
 	}
 
@@ -617,6 +643,23 @@ func calcularRacha(historial []sesionVD) (int, string) {
 	default:
 		return 0, ""
 	}
+}
+
+// calcularMejorRacha devuelve la racha de victorias más larga del historial (número
+// máximo de sesiones consecutivas ganadas, en cualquier orden del historial).
+func calcularMejorRacha(historial []sesionVD) int {
+	mejor, actual := 0, 0
+	for _, s := range historial {
+		if s.Victorias > s.Derrotas {
+			actual++
+			if actual > mejor {
+				mejor = actual
+			}
+		} else {
+			actual = 0
+		}
+	}
+	return mejor
 }
 
 // ========== ESTADÍSTICAS ==========

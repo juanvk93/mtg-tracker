@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ranking — MTG Draft Tracker</title>
   <link rel="stylesheet" href="/static/css/main.css">
+  {{template "head" .}}
 </head>
 <body>
 {{template "nav" .}}
@@ -17,7 +18,10 @@
     <p class="page-subtitle">{{if eq .Temporada.Estado "cerrada"}}Temporada cerrada{{else}}Temporada activa{{end}} · {{.Sesiones}} sesión{{if ne .Sesiones 1}}es{{end}} jugada{{if ne .Sesiones 1}}s{{end}}</p>
     {{end}}
   </div>
-  {{template "selectorTemporada" .}}
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    {{if .Temporada}}<a href="/tv?temporada={{.Temporada.ID}}" class="btn btn-secondary btn-sm">📺 Modo TV</a>{{end}}
+    {{template "selectorTemporada" .}}
+  </div>
 </div>
 
 {{if .SinDatos}}

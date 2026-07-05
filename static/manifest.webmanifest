@@ -1,0 +1,13 @@
+{
+  "name": "MTG Draft Tracker",
+  "short_name": "MTG Draft",
+  "description": "Tracker de partidas de Magic: The Gathering para tu grupo de draft",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1a1918",
+  "theme_color": "#1a1918",
+  "icons": [
+    { "src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

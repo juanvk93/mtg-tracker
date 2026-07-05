@@ -20,8 +20,9 @@
   --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
 }
 
+/* Paleta oscura: automática por sistema (salvo que el usuario fuerce claro) y manual con data-theme="dark" */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg:           #1a1918;
     --bg-card:      #242322;
     --bg-surface:   #2d2c2a;
@@ -32,6 +33,17 @@
     --text-faint:   #666;
     --accent:       #f0ede8;
   }
+}
+:root[data-theme="dark"] {
+  --bg:           #1a1918;
+  --bg-card:      #242322;
+  --bg-surface:   #2d2c2a;
+  --border:       rgba(255,255,255,0.1);
+  --border-hover: rgba(255,255,255,0.25);
+  --text:         #f0ede8;
+  --text-muted:   #999;
+  --text-faint:   #666;
+  --accent:       #f0ede8;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -873,3 +885,66 @@ hr.divider {
   .h2h-dom { background: rgba(45,122,71,0.22); color: #5aba7a; }
   .h2h-sub { background: rgba(160,57,26,0.20); color: #e0785a; }
 }
+
+/* === TOGGLE DE TEMA === */
+.tema-toggle {
+  background: none;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 5px 9px;
+  transition: color 0.1s, border-color 0.1s;
+}
+.tema-toggle:hover { color: var(--text); border-color: var(--border-hover); }
+
+/* === PREMIOS DE TEMPORADA === */
+.premios-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+.premio-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.premio-emoji { font-size: 1.7rem; line-height: 1; }
+.premio-titulo { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-faint); font-weight: 600; }
+.premio-jugador { font-size: 14px; font-weight: 600; margin-top: 2px; }
+.premio-valor { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+/* === NOTAS DE RESULTADO (detalle de sesión) === */
+.resultado-notas {
+  padding: 10px 16px;
+  border-top: 0.5px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* === MODO TV === */
+.tv-body { background: var(--bg); color: var(--text); min-height: 100vh; padding: 3vh 4vw; }
+.tv-wrap { max-width: 1280px; margin: 0 auto; }
+.tv-header { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: 3vh; padding-bottom: 1.5vh; border-bottom: 1px solid var(--border); }
+.tv-header h1 { font-size: clamp(28px, 5vw, 56px); font-weight: 700; letter-spacing: -1px; }
+.tv-sub { font-size: clamp(14px, 2vw, 22px); color: var(--text-faint); }
+.tv-table { width: 100%; border-collapse: collapse; font-size: clamp(18px, 2.6vw, 34px); }
+.tv-table th { color: var(--text-faint); font-weight: 500; font-size: clamp(11px, 1.4vw, 17px); text-transform: uppercase; letter-spacing: 1px; text-align: center; padding: 1vh 1vw; border-bottom: 1px solid var(--border); }
+.tv-table td { text-align: center; padding: 1.4vh 1vw; border-bottom: 0.5px solid var(--border); }
+.tv-pos { color: var(--text-faint); font-weight: 700; }
+.tv-jug { text-align: left; font-weight: 600; display: flex; align-items: center; gap: 0.6em; }
+.tv-jug .avatar { width: 1.5em; height: 1.5em; font-size: 0.7em; flex-shrink: 0; }
+.tv-win { color: #3fae6a; font-weight: 700; }
+.tv-loss { color: #e0785a; }
+.tv-lider td { background: rgba(212,175,55,0.14); }
+.tv-lider .tv-pos::before { content: "🏆 "; }
+.tv-empty { text-align: center; font-size: 4vw; color: var(--text-faint); padding: 20vh 0; }
+.tv-foot { display: flex; justify-content: space-between; margin-top: 3vh; font-size: clamp(11px, 1.4vw, 16px); color: var(--text-faint); }
+.tv-salir { color: var(--text-faint); text-decoration: none; }

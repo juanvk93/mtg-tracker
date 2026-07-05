@@ -168,9 +168,17 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 	// Distribución de colores del grupo
 	distColores, _ := db.ObtenerDistribucionColoresGrupo(a.DB, temporada.ID)
 
-	// Gráfica de evolución del ranking (victorias acumuladas por sesión)
+	// Gráficas de evolución (victorias acumuladas y win rate) — comparten la misma consulta
 	evolucion, _ := db.ObtenerEvolucionVictorias(a.DB, temporada.ID)
 	graficaEvolucion := construirGraficaEvolucion(evolucion)
+	graficaWinRate := construirGraficaWinRate(evolucion)
+
+	// Meta de colores del grupo (veces jugado + win rate por color)
+	coloresMeta, _ := db.ObtenerColoresTemporada(a.DB, temporada.ID)
+
+	// Premios de temporada, derivados del ranking
+	ranking, _ := db.ObtenerRanking(a.DB, temporada.ID)
+	premios := construirPremios(ranking)
 
 	// Matriz head-to-head (todos contra todos) sobre los jugadores que han jugado
 	matrizWins, _ := db.ObtenerMatrizH2H(a.DB, temporada.ID)
@@ -201,7 +209,10 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 		"Jugadores":        jugadores,
 		"JugadoresStats":   jugadoresStats,
 		"DistColores":      distColores,
+		"ColoresMeta":      coloresMeta,
+		"Premios":          premios,
 		"GraficaEvolucion": graficaEvolucion,
+		"GraficaWinRate":   graficaWinRate,
 		"MatrizJugadores":  matrizJugadores,
 		"MatrizWins":       matrizWins,
 		"H2H":              h2h,
@@ -288,6 +299,26 @@ func (a *AppHandlers) PerfilJugador(w http.ResponseWriter, r *http.Request) {
 		"Fila":       fila,
 		"Posicion":   posicion,
 		"SinDatos":   fila == nil && len(historial) == 0,
+	})
+}
+
+// ModoTV muestra el ranking a pantalla completa para proyectarlo (auto-refresco)
+func (a *AppHandlers) ModoTV(w http.ResponseWriter, r *http.Request) {
+	temporada, _, ok := a.resolverTemporada(r)
+	if !ok {
+		a.renderizar(w, "tv.html", map[string]interface{}{"SinDatos": true})
+		return
+	}
+	ranking, err := db.ObtenerRanking(a.DB, temporada.ID)
+	if err != nil {
+		http.Error(w, "Error interno", http.StatusInternalServerError)
+		return
+	}
+	a.renderizar(w, "tv.html", map[string]interface{}{
+		"Temporada": temporada,
+		"Ranking":   ranking,
+		"Sesiones":  db.ContarSesionesPorTemporada(a.DB, temporada.ID),
+		"SinDatos":  len(ranking) == 0,
 	})
 }
 

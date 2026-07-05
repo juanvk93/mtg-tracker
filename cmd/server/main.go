@@ -55,6 +55,7 @@ func main() {
 	mux.HandleFunc("GET /sesion/{id}", h.DetalleSesion)
 	mux.HandleFunc("GET /estadisticas", h.Estadisticas)
 	mux.HandleFunc("GET /jugador/{id}", h.PerfilJugador)
+	mux.HandleFunc("GET /tv", h.ModoTV)
 	mux.HandleFunc("GET /changelog", h.Changelog)
 	mux.HandleFunc("GET /temporada/{id}/resumen", h.ResumenTemporada)
 
@@ -82,6 +83,7 @@ func main() {
 
 	// Jugadores
 	mux.HandleFunc("POST /admin/jugador/crear", handlers.MiddlewareAdmin(h.AdminCrearJugador))
+	mux.HandleFunc("POST /admin/jugador/toggle", handlers.MiddlewareAdmin(h.AdminToggleJugador))
 	mux.HandleFunc("GET /admin/jugador/{id}/editar", handlers.MiddlewareAdmin(h.AdminEditarJugadorForm))
 	mux.HandleFunc("POST /admin/jugador/{id}/editar", handlers.MiddlewareAdmin(h.AdminActualizarJugador))
 

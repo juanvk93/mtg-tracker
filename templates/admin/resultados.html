@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Registrar resultados — MTG Draft Tracker</title>
   <link rel="stylesheet" href="/static/css/main.css">
+  {{template "head" .}}
 </head>
 <body>
 {{template "nav" .}}
@@ -82,6 +83,10 @@
           {{end}}
         </div>
       </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">Arquetipo / notas</label>
+        <input type="text" name="notas_{{$jid}}" class="form-input" placeholder="Ej: Aggro rojo, me quedé sin bombas…">
+      </div>
     </div>
   </div>
   {{end}}
@@ -105,6 +110,7 @@
             <th class="matriz-nombre">Jugador</th>
             {{range .Jugadores}}<th class="matriz-col" title="rival vencido">{{renderAvatar .Avatar}}</th>{{end}}
             <th class="matriz-nombre">Colores</th>
+            <th class="matriz-nombre">Notas</th>
           </tr>
         </thead>
         <tbody>
@@ -134,6 +140,9 @@
                 {{end}}
               </div>
             </td>
+            <td class="matriz-nombre">
+              <input type="text" class="form-input matriz-notas" name="notas_{{$row.ID}}" value="{{index $.NotasMap $row.ID}}" placeholder="Arquetipo…" style="height:30px;font-size:12px;min-width:150px">
+            </td>
           </tr>
           {{end}}
         </tbody>
@@ -151,7 +160,8 @@
 var datosExistentes = { {{range .Detalle.Resultados}}
   "{{.Jugador.ID}}": {
     victorias: [{{range .Victorias}}{{.ID}},{{end}}],
-    colores: [{{range .Colores}}"{{.}}",{{end}}]
+    colores: [{{range .Colores}}"{{.}}",{{end}}],
+    notas: "{{.Notas}}"
   },{{end}}
 };
 
@@ -181,6 +191,10 @@ document.addEventListener('DOMContentLoaded', function() {
       var input = document.querySelector('input[name="color_' + jugID + '"][value="' + color + '"]');
       if (input) { input.checked = true; var label = input.closest('.mana-checkbox'); if (label) label.classList.add('checked'); }
     });
+    if (datos.notas) {
+      var notasInput = document.querySelector('#form-resultados input[name="notas_' + jugID + '"]');
+      if (notasInput) notasInput.value = datos.notas;
+    }
   }
 
   // Paso 3: Ahora sí, actualizar visibilidad de rivales una sola vez

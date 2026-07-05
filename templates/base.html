@@ -8,10 +8,23 @@
       <li><a href="/historial">Historial</a></li>
       <li><a href="/estadisticas">Estadísticas</a></li>
     </ul>
-    <a href="/changelog" class="nav-version" style="font-size:11px;color:var(--text-faint);text-decoration:none;font-family:'SF Mono','Courier New',monospace;padding:0 8px" title="Ver changelog">v1.5.0</a>
+    <a href="/changelog" class="nav-version" style="font-size:11px;color:var(--text-faint);text-decoration:none;font-family:'SF Mono','Courier New',monospace;padding:0 8px" title="Ver changelog">v1.6.0</a>
+    <button type="button" class="tema-toggle" onclick="toggleTema()" aria-label="Cambiar tema" title="Tema claro/oscuro">◐</button>
     <a href="/admin" class="nav-admin">⚙ Admin</a>
   </div>
 </nav>
+{{end}}
+
+{{/* Contenido común del <head> (PWA + tema). Cada página lo incluye tras su <title>. */}}
+{{define "head"}}
+<meta name="theme-color" content="#1a1918">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icon.svg">
+<script>
+  // Aplica el tema guardado antes de pintar para evitar parpadeo
+  (function () { try { var t = localStorage.getItem('tema'); if (t) document.documentElement.dataset.theme = t; } catch (e) {} })();
+</script>
 {{end}}
 
 {{/* Selector de temporada reutilizable. Espera .Temporadas (lista) y .Temporada (seleccionada). */}}

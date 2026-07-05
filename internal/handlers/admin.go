@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -284,25 +285,42 @@ func (a *AppHandlers) AdminFormResultados(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	jugadores, err := db.ObtenerJugadores(a.DB)
+	// Cargar resultados existentes para pre-rellenar el formulario
+	detalle, _ := db.ObtenerDetalleSesion(a.DB, id)
+
+	// La lista del formulario = jugadores activos + los que ya participaron en ESTA sesión
+	// (aunque estén inactivos), para poder seguir editando sesiones antiguas.
+	activos, err := db.ObtenerJugadoresActivos(a.DB)
 	if err != nil {
 		http.Error(w, "Error interno", http.StatusInternalServerError)
 		return
 	}
-
-	// Cargar resultados existentes para pre-rellenar el formulario
-	detalle, _ := db.ObtenerDetalleSesion(a.DB, id)
+	enLista := map[int]bool{}
+	var jugadores []models.Jugador
+	for _, j := range activos {
+		enLista[j.ID] = true
+		jugadores = append(jugadores, j)
+	}
+	for _, rd := range detalle.Resultados {
+		if !enLista[rd.Jugador.ID] {
+			enLista[rd.Jugador.ID] = true
+			jugadores = append(jugadores, rd.Jugador)
+		}
+	}
+	sort.Slice(jugadores, func(i, j int) bool { return jugadores[i].Nombre < jugadores[j].Nombre })
 
 	// Mapas de pre-relleno para el modo matriz (y consistencia con la vista detallada)
 	participa := map[int]bool{}
 	victMap := map[int]map[int]bool{}
 	colorMap := map[int]map[string]bool{}
+	notasMap := map[int]string{}
 	for _, j := range jugadores {
 		victMap[j.ID] = map[int]bool{}
 		colorMap[j.ID] = map[string]bool{}
 	}
 	for _, rd := range detalle.Resultados {
 		participa[rd.Jugador.ID] = true
+		notasMap[rd.Jugador.ID] = rd.Notas
 		if m, ok := victMap[rd.Jugador.ID]; ok {
 			for _, v := range rd.Victorias {
 				m[v.ID] = true
@@ -323,6 +341,7 @@ func (a *AppHandlers) AdminFormResultados(w http.ResponseWriter, r *http.Request
 		"Participa":     participa,
 		"VictMap":       victMap,
 		"ColorMap":      colorMap,
+		"NotasMap":      notasMap,
 		"SinResultados": len(detalle.Resultados) == 0,
 	})
 }
@@ -392,7 +411,9 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 		coloresKey := fmt.Sprintf("color_%d", jugID)
 		colores := r.Form[coloresKey]
 
-		if err := db.GuardarResultadoSesion(a.DB, sesionID, jugID, victorias, nil, colores); err != nil {
+		notas := strings.TrimSpace(r.FormValue(fmt.Sprintf("notas_%d", jugID)))
+
+		if err := db.GuardarResultadoSesion(a.DB, sesionID, jugID, victorias, nil, colores, notas); err != nil {
 			log.Printf("Error al guardar resultado del jugador %d: %v", jugID, err)
 		}
 	}
@@ -430,6 +451,27 @@ func (a *AppHandlers) AdminCrearJugador(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	http.Redirect(w, r, "/admin", http.StatusFound)
+}
+
+// AdminToggleJugador activa o desactiva un jugador (mantiene su histórico y lo saca
+// de los formularios de resultados). Recibe el nuevo estado en el campo `activo`.
+func (a *AppHandlers) AdminToggleJugador(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Redirect(w, r, "/admin", http.StatusFound)
+		return
+	}
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil {
+		http.Error(w, "ID inválido", http.StatusBadRequest)
+		return
+	}
+	activo := r.FormValue("activo") == "true"
+	if err := db.CambiarEstadoJugador(a.DB, id, activo); err != nil {
+		log.Println("Error al cambiar estado del jugador:", err)
+		http.Error(w, "Error al cambiar estado del jugador", http.StatusInternalServerError)
+		return
+	}
 	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 

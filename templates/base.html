@@ -13,3 +13,15 @@
   </div>
 </nav>
 {{end}}
+
+{{/* Selector de temporada reutilizable. Espera .Temporadas (lista) y .Temporada (seleccionada). */}}
+{{define "selectorTemporada"}}{{if .Temporadas}}{{if gt (len .Temporadas) 1}}
+<form method="get" class="temporada-selector">
+  {{$sel := .Temporada}}
+  <select name="temporada" class="form-select temporada-select" onchange="this.form.submit()" aria-label="Temporada">
+    {{range .Temporadas}}
+    <option value="{{.ID}}"{{if eq .ID $sel.ID}} selected{{end}}>Temporada {{.Anio}}{{if eq .Estado "cerrada"}} · cerrada{{end}}</option>
+    {{end}}
+  </select>
+</form>
+{{end}}{{end}}{{end}}

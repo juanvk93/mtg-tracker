@@ -20,6 +20,10 @@
   </p>
 </div>
 
+<div class="vista-toggle">
+  <button type="button" id="btn-vista-matriz" class="btn btn-secondary">⚡ Vista rápida (matriz)</button>
+</div>
+
 <form method="POST" action="/admin/sesion/{{.Sesion.ID}}/resultados" id="form-resultados">
   <input type="hidden" name="jugadores_sesion" id="jugadores-sesion-ids" value="">
 
@@ -83,6 +87,61 @@
   {{end}}
 
   <div style="display:flex;gap:1rem;margin-top:1.5rem">
+    <button type="submit" class="btn btn-primary">💾 Guardar resultados</button>
+    <a href="/admin" class="btn btn-secondary">Cancelar</a>
+  </div>
+</form>
+
+<!-- Vista rápida: matriz de enfrentamientos (fila venció a columna) -->
+<form method="POST" action="/admin/sesion/{{.Sesion.ID}}/resultados" id="form-matriz" style="display:none">
+  <input type="hidden" name="jugadores_sesion" id="matriz-jugadores" value="">
+  <input type="hidden" name="descripcion" value="{{.Sesion.Descripcion}}">
+  <div class="card" style="padding:0">
+    <div class="matriz-wrap">
+      <table class="matriz-table">
+        <thead>
+          <tr>
+            <th>Jugó</th>
+            <th class="matriz-nombre">Jugador</th>
+            {{range .Jugadores}}<th class="matriz-col" title="rival vencido">{{renderAvatar .Avatar}}</th>{{end}}
+            <th class="matriz-nombre">Colores</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range .Jugadores}}
+          {{$row := .}}
+          <tr data-jug="{{$row.ID}}">
+            <td><input type="checkbox" class="matriz-juega" data-jug="{{$row.ID}}"{{if or $.SinResultados (index $.Participa $row.ID)}} checked{{end}}></td>
+            <td class="matriz-nombre">
+              <div class="jugador-cell">
+                <div class="avatar avatar-sm" style="background-color:{{$row.Color}}18;border-color:{{$row.Color}}30">{{renderAvatar $row.Avatar}}</div>
+                <span class="jugador-nombre">{{$row.Nombre}}</span>
+              </div>
+            </td>
+            {{range $.Jugadores}}
+            <td>
+              {{if eq .ID $row.ID}}<span class="matriz-diag">·</span>
+              {{else}}<input type="checkbox" class="matriz-vict" name="victoria_{{$row.ID}}" value="{{.ID}}" title="{{$row.Nombre}} venció a {{.Nombre}}"{{if index (index $.VictMap $row.ID) .ID}} checked{{end}}>{{end}}
+            </td>
+            {{end}}
+            <td class="matriz-nombre">
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                {{range $.Colores}}
+                <label class="mana-checkbox mana-checkbox-{{.}}" style="padding:2px 8px">
+                  <input type="checkbox" class="matriz-color-input" name="color_{{$row.ID}}" value="{{.}}"{{if index (index $.ColorMap $row.ID) .}} checked{{end}}>
+                  {{emojiColor .}}
+                </label>
+                {{end}}
+              </div>
+            </td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p class="text-xs text-faint" style="margin-top:8px">Marca fila → columna cuando el jugador de la fila venció al de la columna. Desmarca "Jugó" para quien no participó.</p>
+  <div style="display:flex;gap:1rem;margin-top:1rem">
     <button type="submit" class="btn btn-primary">💾 Guardar resultados</button>
     <a href="/admin" class="btn btn-secondary">Cancelar</a>
   </div>

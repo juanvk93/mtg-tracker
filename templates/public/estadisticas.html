@@ -14,6 +14,7 @@
   <div>
     <h1 class="page-title">Estadísticas{{if .Temporada}} · {{.Temporada.Anio}}{{end}}</h1>
   </div>
+  {{template "selectorTemporada" .}}
 </div>
 
 {{if .SinDatos}}
@@ -22,6 +23,38 @@
   <div class="empty-title">Sin datos disponibles</div>
 </div>
 {{else}}
+
+<!-- Evolución del ranking (victorias acumuladas por sesión) -->
+{{if not .GraficaEvolucion.Vacia}}
+{{$g := .GraficaEvolucion}}
+<section class="mb-4">
+  <div class="section-title">Evolución del ranking</div>
+  <div class="card">
+    <div style="overflow-x:auto">
+      <svg class="chart-svg" viewBox="0 0 {{$g.Ancho}} {{$g.Alto}}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Evolución de victorias acumuladas por sesión">
+        {{range $g.EjeY}}
+        <line x1="{{$g.PlotX0}}" y1="{{.Y}}" x2="{{$g.PlotX1}}" y2="{{.Y}}" class="chart-grid"/>
+        <text x="{{$g.PlotX0}}" y="{{.Y}}" dx="-6" dy="3" class="chart-axis" text-anchor="end">{{.Texto}}</text>
+        {{end}}
+        {{range $g.EjeX}}
+        <text x="{{.X}}" y="{{.Y}}" class="chart-axis" text-anchor="middle">{{.Texto}}</text>
+        {{end}}
+        {{range $s := $g.Series}}
+        <polyline points="{{$s.PuntosStr}}" fill="none" stroke="{{$s.Jugador.Color}}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        {{range $s.Puntos}}
+        <circle cx="{{.X}}" cy="{{.Y}}" r="2.6" fill="{{$s.Jugador.Color}}"/>
+        {{end}}
+        {{end}}
+      </svg>
+    </div>
+    <div class="chart-legend">
+      {{range $g.Series}}
+      <span class="legend-item"><span class="legend-swatch" style="background:{{.Jugador.Color}}"></span><span style="font-size:13px">{{renderAvatar .Jugador.Avatar}}</span> {{.Jugador.Nombre}} <strong>{{.Total}}</strong></span>
+      {{end}}
+    </div>
+  </div>
+</section>
+{{end}}
 
 <!-- Distribución de colores del grupo -->
 {{if .DistColores}}
@@ -52,6 +85,7 @@
   <div class="section-title">Head to head</div>
   <div class="card mb-3">
     <form method="GET" action="/estadisticas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      {{if .Temporada}}<input type="hidden" name="temporada" value="{{.Temporada.ID}}">{{end}}
       <div class="form-group" style="flex:1;min-width:140px;margin-bottom:0">
         <label class="form-label">Jugador 1</label>
         <select name="j1" class="form-select">

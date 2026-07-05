@@ -11,10 +11,13 @@
 <main class="main">
 
 <div class="page-header">
-  <h1 class="page-title">Historial de sesiones</h1>
-  {{if .Temporada}}
-  <p class="page-subtitle">Temporada {{.Temporada.Anio}}</p>
-  {{end}}
+  <div>
+    <h1 class="page-title">Historial de sesiones</h1>
+    {{if .Temporada}}
+    <p class="page-subtitle">Temporada {{.Temporada.Anio}}{{if eq .Temporada.Estado "cerrada"}} · cerrada{{end}}</p>
+    {{end}}
+  </div>
+  {{template "selectorTemporada" .}}
 </div>
 
 {{if .SinDatos}}

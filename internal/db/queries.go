@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"mtg-tracker/internal/models"
+	"sort"
 	"strings"
 	"time"
 )
@@ -378,27 +379,29 @@ func GuardarResultadoSesion(db *sql.DB, sesionID, jugadorID int, victorias, derr
 	return tx.Commit()
 }
 
-// ObtenerDetalleSesion carga el detalle completo de una sesión con todos los resultados
+// ObtenerDetalleSesion carga el detalle completo de una sesión con todos los
+// resultados usando un número FIJO de consultas (no depende del nº de jugadores):
+// sesión+temporada, participantes, todas las victorias y todos los colores. Las
+// derrotas se derivan en memoria a partir de las victorias de la sesión.
 func ObtenerDetalleSesion(db *sql.DB, sesionID int) (models.SesionDetalle, error) {
 	var detalle models.SesionDetalle
 
-	// Cargar sesión
-	sesion, err := ObtenerSesion(db, sesionID)
+	// 1) Sesión + temporada en una sola consulta
+	err := db.QueryRow(`
+		SELECT s.id, s.temporada_id, s.fecha, s.descripcion,
+		       t.id, t.anio, t.estado
+		FROM sesiones s
+		JOIN temporadas t ON t.id = s.temporada_id
+		WHERE s.id = $1`, sesionID).Scan(
+		&detalle.Sesion.ID, &detalle.Sesion.TemporadaID, &detalle.Sesion.Fecha, &detalle.Sesion.Descripcion,
+		&detalle.Temporada.ID, &detalle.Temporada.Anio, &detalle.Temporada.Estado)
 	if err != nil {
 		return detalle, err
 	}
-	detalle.Sesion = sesion
 
-	// Cargar temporada
-	err = db.QueryRow(`SELECT id, anio, estado FROM temporadas WHERE id=$1`, sesion.TemporadaID).
-		Scan(&detalle.Temporada.ID, &detalle.Temporada.Anio, &detalle.Temporada.Estado)
-	if err != nil {
-		return detalle, err
-	}
-
-	// Cargar resultados de la sesión
+	// 2) Participantes (resultados + datos del jugador)
 	rows, err := db.Query(`
-		SELECT r.id, r.jugador_id, j.nombre, j.color, j.avatar
+		SELECT j.id, j.nombre, j.color, j.avatar
 		FROM resultados r
 		JOIN jugadores j ON j.id = r.jugador_id
 		WHERE r.sesion_id = $1
@@ -406,212 +409,214 @@ func ObtenerDetalleSesion(db *sql.DB, sesionID int) (models.SesionDetalle, error
 	if err != nil {
 		return detalle, err
 	}
-	defer rows.Close()
+	resultados := []models.ResultadoDetalle{}
+	idxPorJugador := map[int]int{}        // jugadorID -> índice en resultados
+	jugadores := map[int]models.Jugador{} // jugadorID -> jugador (para resolver rivales)
+	for rows.Next() {
+		var rd models.ResultadoDetalle
+		if err := rows.Scan(&rd.Jugador.ID, &rd.Jugador.Nombre, &rd.Jugador.Color, &rd.Jugador.Avatar); err != nil {
+			rows.Close()
+			return detalle, err
+		}
+		idxPorJugador[rd.Jugador.ID] = len(resultados)
+		jugadores[rd.Jugador.ID] = rd.Jugador
+		resultados = append(resultados, rd)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return detalle, err
+	}
+	rows.Close()
 
-	// Mapa de todos los jugadores para resolver IDs
-	todosJugadores, err := ObtenerJugadores(db)
+	// 3) Todas las victorias de la sesión: ganador -> rival. De aquí salen a la vez
+	//    las victorias de cada jugador y (reflejadas) las derrotas del rival.
+	vRows, err := db.Query(`
+		SELECT r.jugador_id AS ganador_id, v.rival_id
+		FROM victorias v
+		JOIN resultados r ON r.id = v.resultado_id
+		WHERE r.sesion_id = $1`, sesionID)
 	if err != nil {
 		return detalle, err
 	}
-	mapaJugadores := make(map[int]models.Jugador)
-	for _, j := range todosJugadores {
-		mapaJugadores[j.ID] = j
-	}
-
-	for rows.Next() {
-		var rd models.ResultadoDetalle
-		var resultadoID int
-		if err := rows.Scan(&resultadoID, &rd.Jugador.ID, &rd.Jugador.Nombre, &rd.Jugador.Color, &rd.Jugador.Avatar); err != nil {
+	for vRows.Next() {
+		var ganadorID, rivalID int
+		if err := vRows.Scan(&ganadorID, &rivalID); err != nil {
+			vRows.Close()
 			return detalle, err
 		}
-
-		// Cargar victorias de este resultado
-		vRows, err := db.Query(`SELECT rival_id FROM victorias WHERE resultado_id=$1`, resultadoID)
-		if err != nil {
-			return detalle, err
-		}
-		for vRows.Next() {
-			var rivalID int
-			vRows.Scan(&rivalID)
-			if j, ok := mapaJugadores[rivalID]; ok {
-				rd.Victorias = append(rd.Victorias, j)
+		if gi, ok := idxPorJugador[ganadorID]; ok {
+			if rival, ok := jugadores[rivalID]; ok {
+				resultados[gi].Victorias = append(resultados[gi].Victorias, rival)
 			}
 		}
+		if ri, ok := idxPorJugador[rivalID]; ok {
+			if ganador, ok := jugadores[ganadorID]; ok {
+				resultados[ri].Derrotas = append(resultados[ri].Derrotas, ganador)
+			}
+		}
+	}
+	if err := vRows.Err(); err != nil {
 		vRows.Close()
-		rd.TotalVictorias = len(rd.Victorias)
-
-		// Derrotas = jugadores en la sesión que le ganaron a este
-		dRows, err := db.Query(`
-			SELECT r.jugador_id 
-			FROM victorias v
-			JOIN resultados r ON r.id = v.resultado_id
-			WHERE r.sesion_id = $1 AND v.rival_id = $2`, sesionID, rd.Jugador.ID)
-		if err != nil {
-			return detalle, err
-		}
-		for dRows.Next() {
-			var ganadorID int
-			dRows.Scan(&ganadorID)
-			if j, ok := mapaJugadores[ganadorID]; ok {
-				rd.Derrotas = append(rd.Derrotas, j)
-			}
-		}
-		dRows.Close()
-		rd.TotalDerrotas = len(rd.Derrotas)
-
-		// Colores jugados
-		cRows, err := db.Query(`SELECT color FROM colores_jugados WHERE resultado_id=$1`, resultadoID)
-		if err != nil {
-			return detalle, err
-		}
-		for cRows.Next() {
-			var color string
-			cRows.Scan(&color)
-			rd.Colores = append(rd.Colores, color)
-		}
-		cRows.Close()
-
-		detalle.Resultados = append(detalle.Resultados, rd)
+		return detalle, err
 	}
+	vRows.Close()
 
+	// 4) Colores jugados por cada participante
+	cRows, err := db.Query(`
+		SELECT r.jugador_id, cj.color
+		FROM colores_jugados cj
+		JOIN resultados r ON r.id = cj.resultado_id
+		WHERE r.sesion_id = $1`, sesionID)
+	if err != nil {
+		return detalle, err
+	}
+	for cRows.Next() {
+		var jugadorID int
+		var color string
+		if err := cRows.Scan(&jugadorID, &color); err != nil {
+			cRows.Close()
+			return detalle, err
+		}
+		if i, ok := idxPorJugador[jugadorID]; ok {
+			resultados[i].Colores = append(resultados[i].Colores, color)
+		}
+	}
+	if err := cRows.Err(); err != nil {
+		cRows.Close()
+		return detalle, err
+	}
+	cRows.Close()
+
+	for i := range resultados {
+		resultados[i].TotalVictorias = len(resultados[i].Victorias)
+		resultados[i].TotalDerrotas = len(resultados[i].Derrotas)
+	}
+	detalle.Resultados = resultados
 	return detalle, nil
 }
 
 // ========== RANKING ==========
 
-// ObtenerRanking calcula el ranking de una temporada
+// ObtenerRanking calcula el ranking completo de una temporada en UNA sola consulta.
+// Antes se hacían ~3 consultas por jugador (patrón N+1), lento contra el pooler de
+// Supabase; ahora se trae todo de golpe (victorias/derrotas por sesión) y se agrega
+// en memoria. El resultado es idéntico al cálculo anterior.
 func ObtenerRanking(db *sql.DB, temporadaID int) ([]models.FilaRanking, error) {
-	// Obtener todos los jugadores con resultados en la temporada
 	rows, err := db.Query(`
-		SELECT DISTINCT j.id, j.nombre, j.color, j.avatar
-		FROM jugadores j
-		JOIN resultados r ON r.jugador_id = j.id
+		SELECT
+			j.id, j.nombre, j.color, j.avatar,
+			s.fecha,
+			(SELECT COUNT(*) FROM victorias v
+				WHERE v.resultado_id = r.id) AS vict,
+			(SELECT COUNT(*) FROM victorias v2
+				JOIN resultados r2 ON r2.id = v2.resultado_id
+				WHERE r2.sesion_id = r.sesion_id AND v2.rival_id = r.jugador_id) AS derr
+		FROM resultados r
 		JOIN sesiones s ON s.id = r.sesion_id
+		JOIN jugadores j ON j.id = r.jugador_id
 		WHERE s.temporada_id = $1
-		ORDER BY j.nombre`, temporadaID)
+		ORDER BY j.nombre, s.fecha DESC`, temporadaID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var jugadores []models.Jugador
-	for rows.Next() {
-		var j models.Jugador
-		rows.Scan(&j.ID, &j.Nombre, &j.Color, &j.Avatar)
-		jugadores = append(jugadores, j)
+	// Acumular por jugador preservando el orden de aparición. El historial de cada
+	// jugador queda en orden de fecha descendente, justo lo que pide calcularRacha.
+	type acumulado struct {
+		fila      models.FilaRanking
+		historial []sesionVD
 	}
+	orden := []int{}
+	porJugador := map[int]*acumulado{}
 
-	var ranking []models.FilaRanking
-	for _, j := range jugadores {
-		fila, err := calcularFilaRanking(db, j, temporadaID)
-		if err != nil {
+	for rows.Next() {
+		var (
+			id                    int
+			nombre, color, avatar string
+			fecha                 time.Time
+			vict, derr            int
+		)
+		if err := rows.Scan(&id, &nombre, &color, &avatar, &fecha, &vict, &derr); err != nil {
 			return nil, err
 		}
-		ranking = append(ranking, fila)
+		a, ok := porJugador[id]
+		if !ok {
+			a = &acumulado{fila: models.FilaRanking{
+				Jugador: models.Jugador{ID: id, Nombre: nombre, Color: color, Avatar: avatar},
+			}}
+			porJugador[id] = a
+			orden = append(orden, id)
+		}
+		a.fila.Victorias += vict
+		a.fila.Derrotas += derr
+		a.historial = append(a.historial, sesionVD{Victorias: vict, Derrotas: derr})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	// Ordenar por victorias desc, luego win rate desc
-	for i := 0; i < len(ranking); i++ {
-		for k := i + 1; k < len(ranking); k++ {
-			if ranking[k].Victorias > ranking[i].Victorias ||
-				(ranking[k].Victorias == ranking[i].Victorias && ranking[k].WinRate > ranking[i].WinRate) {
-				ranking[i], ranking[k] = ranking[k], ranking[i]
-			}
+	ranking := make([]models.FilaRanking, 0, len(orden))
+	for _, id := range orden {
+		a := porJugador[id]
+		a.fila.Partidas = a.fila.Victorias + a.fila.Derrotas
+		if a.fila.Partidas > 0 {
+			a.fila.WinRate = float64(a.fila.Victorias) / float64(a.fila.Partidas) * 100
 		}
+		a.fila.RachaActual, a.fila.RachaTipo = calcularRacha(a.historial)
+		ranking = append(ranking, a.fila)
 	}
+
+	// Ordenar por victorias desc, luego win rate desc (estable → desempates deterministas por nombre)
+	sort.SliceStable(ranking, func(i, k int) bool {
+		if ranking[i].Victorias != ranking[k].Victorias {
+			return ranking[i].Victorias > ranking[k].Victorias
+		}
+		return ranking[i].WinRate > ranking[k].WinRate
+	})
 
 	return ranking, nil
 }
 
-// calcularFilaRanking calcula las estadísticas de un jugador en una temporada
-func calcularFilaRanking(db *sql.DB, j models.Jugador, temporadaID int) (models.FilaRanking, error) {
-	fila := models.FilaRanking{Jugador: j}
+// sesionVD resume las victorias y derrotas de un jugador en una sola sesión.
+type sesionVD struct {
+	Victorias int
+	Derrotas  int
+}
 
-	// Victorias totales: partidas individuales que este jugador ganó en la temporada.
-	// Cuenta registros en 'victorias' donde el resultado pertenece a este jugador
-	// y la sesión del resultado está en la temporada.
-	err := db.QueryRow(`
-		SELECT COUNT(*)
-		FROM victorias v
-		JOIN resultados r ON r.id = v.resultado_id
-		JOIN sesiones s ON s.id = r.sesion_id
-		WHERE r.jugador_id = $1 AND s.temporada_id = $2`, j.ID, temporadaID).Scan(&fila.Victorias)
-	if err != nil {
-		return fila, err
+// calcularRacha calcula la racha actual a partir del historial de sesiones, que debe
+// venir ordenado de la más reciente a la más antigua. Devuelve la longitud de la racha
+// y su tipo ("W" victorias, "L" derrotas, "" si la última sesión fue empate).
+func calcularRacha(historial []sesionVD) (int, string) {
+	if len(historial) == 0 {
+		return 0, ""
 	}
+	ultima := historial[0]
 
-	// Derrotas totales: partidas individuales que este jugador perdió en la temporada.
-	// Busca registros en 'victorias' donde este jugador es el rival_id (fue vencido),
-	// y filtra por sesiones de la temporada a través de la sesión donde ESTE jugador participó.
-	err = db.QueryRow(`
-		SELECT COUNT(*)
-		FROM victorias v
-		JOIN resultados r_ganador ON r_ganador.id = v.resultado_id
-		JOIN resultados r_perdedor ON r_perdedor.sesion_id = r_ganador.sesion_id AND r_perdedor.jugador_id = $1
-		JOIN sesiones s ON s.id = r_perdedor.sesion_id
-		WHERE v.rival_id = $1 AND s.temporada_id = $2`, j.ID, temporadaID).Scan(&fila.Derrotas)
-	if err != nil {
-		return fila, err
-	}
-
-	fila.Partidas = fila.Victorias + fila.Derrotas
-	if fila.Partidas > 0 {
-		fila.WinRate = float64(fila.Victorias) / float64(fila.Partidas) * 100
-	}
-
-	// Calcular racha actual: obtener últimas partidas ordenadas por fecha
-	sesionesRows, err := db.Query(`
-		SELECT s.fecha, 
-			(SELECT COUNT(*) FROM victorias v2 JOIN resultados r2 ON r2.id=v2.resultado_id WHERE r2.jugador_id=$1 AND r2.sesion_id=s.id) as vict,
-			(SELECT COUNT(*) FROM victorias v3 JOIN resultados r3 ON r3.id=v3.resultado_id WHERE v3.rival_id=$2 AND r3.sesion_id=s.id) as derr
-		FROM sesiones s
-		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $3
-		WHERE s.temporada_id = $4
-		ORDER BY s.fecha DESC`, j.ID, j.ID, j.ID, temporadaID)
-	if err != nil {
-		return fila, err
-	}
-	defer sesionesRows.Close()
-
-	type sesionStats struct {
-		victorias int
-		derrotas  int
-	}
-	var historial []sesionStats
-	for sesionesRows.Next() {
-		var fecha time.Time
-		var vs sesionStats
-		sesionesRows.Scan(&fecha, &vs.victorias, &vs.derrotas)
-		historial = append(historial, vs)
-	}
-
-	// Calcular racha desde la sesión más reciente
-	if len(historial) > 0 {
-		ultima := historial[0]
-		if ultima.victorias > ultima.derrotas {
-			fila.RachaTipo = "W"
-			fila.RachaActual = 1
-			for i := 1; i < len(historial); i++ {
-				if historial[i].victorias > historial[i].derrotas {
-					fila.RachaActual++
-				} else {
-					break
-				}
-			}
-		} else if ultima.derrotas > ultima.victorias {
-			fila.RachaTipo = "L"
-			fila.RachaActual = 1
-			for i := 1; i < len(historial); i++ {
-				if historial[i].derrotas > historial[i].victorias {
-					fila.RachaActual++
-				} else {
-					break
-				}
+	switch {
+	case ultima.Victorias > ultima.Derrotas:
+		n := 1
+		for i := 1; i < len(historial); i++ {
+			if historial[i].Victorias > historial[i].Derrotas {
+				n++
+			} else {
+				break
 			}
 		}
+		return n, "W"
+	case ultima.Derrotas > ultima.Victorias:
+		n := 1
+		for i := 1; i < len(historial); i++ {
+			if historial[i].Derrotas > historial[i].Victorias {
+				n++
+			} else {
+				break
+			}
+		}
+		return n, "L"
+	default:
+		return 0, ""
 	}
-
-	return fila, nil
 }
 
 // ========== ESTADÍSTICAS ==========

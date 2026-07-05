@@ -223,7 +223,7 @@ func ObtenerRachaRecordJugador(db *sql.DB, jugadorID, temporadaID int) (models.R
 	defer rows.Close()
 
 	type sesionResult struct {
-		gano bool // true si ganó la sesión, false si perdió, sesiones empatadas se ignoran
+		gano   bool // true si ganó la sesión, false si perdió, sesiones empatadas se ignoran
 		jugada bool
 	}
 
@@ -317,6 +317,7 @@ func ObtenerDistribucionColoresGrupo(db *sql.DB, temporadaID int) ([]models.Dist
 // ObtenerVerdugoYVictima analiza los rivales del jugador y devuelve:
 //   - verdugo: rival contra el que peor win rate tiene (con mínimo 2 partidas)
 //   - víctima: rival contra el que mejor win rate tiene (con mínimo 2 partidas)
+//
 // Devuelve (nil, nil) si no hay rivales con suficientes partidas.
 func ObtenerVerdugoYVictima(db *sql.DB, jugadorID, temporadaID int) (*models.RivalConWinRate, *models.RivalConWinRate, error) {
 	rivales := make(map[int]*models.RivalConWinRate)
@@ -651,6 +652,46 @@ func ObtenerResumenTemporada(db *sql.DB, temporadaID int) (*models.ResumenTempor
 	resumen.ColorDominante = ObtenerColorMasJugado(db, temporadaID)
 
 	return resumen, nil
+}
+
+// EvolucionFila es una fila de la evolución de victorias por sesión (para la gráfica).
+type EvolucionFila struct {
+	JugadorID       int
+	Nombre          string
+	Color           string
+	Avatar          string
+	SesionID        int
+	Fecha           time.Time
+	VictoriasSesion int
+}
+
+// ObtenerEvolucionVictorias devuelve, en orden cronológico, las victorias de cada
+// jugador en cada sesión de la temporada (para dibujar la evolución del ranking).
+func ObtenerEvolucionVictorias(db *sql.DB, temporadaID int) ([]EvolucionFila, error) {
+	rows, err := db.Query(`
+		SELECT
+			j.id, j.nombre, j.color, j.avatar,
+			s.id, s.fecha,
+			(SELECT COUNT(*) FROM victorias v WHERE v.resultado_id = r.id) AS vict
+		FROM resultados r
+		JOIN sesiones s ON s.id = r.sesion_id
+		JOIN jugadores j ON j.id = r.jugador_id
+		WHERE s.temporada_id = $1
+		ORDER BY s.fecha ASC, s.id ASC, j.nombre ASC`, temporadaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var filas []EvolucionFila
+	for rows.Next() {
+		var f EvolucionFila
+		if err := rows.Scan(&f.JugadorID, &f.Nombre, &f.Color, &f.Avatar, &f.SesionID, &f.Fecha, &f.VictoriasSesion); err != nil {
+			return nil, err
+		}
+		filas = append(filas, f)
+	}
+	return filas, rows.Err()
 }
 
 // ObtenerEstadisticasCompletasJugador agrupa todas las estadísticas avanzadas de un jugador

@@ -12,12 +12,12 @@ import (
 
 // Backup representa el volcado completo de la base de datos
 type Backup struct {
-	Version    string          `json:"version"`
-	FechaExport time.Time      `json:"fecha_export"`
-	Jugadores  []BackupJugador `json:"jugadores"`
-	Temporadas []BackupTemporada `json:"temporadas"`
-	Sesiones   []BackupSesion  `json:"sesiones"`
-	Resultados []BackupResultado `json:"resultados"`
+	Version     string            `json:"version"`
+	FechaExport time.Time         `json:"fecha_export"`
+	Jugadores   []BackupJugador   `json:"jugadores"`
+	Temporadas  []BackupTemporada `json:"temporadas"`
+	Sesiones    []BackupSesion    `json:"sesiones"`
+	Resultados  []BackupResultado `json:"resultados"`
 }
 
 // BackupJugador representa un jugador en el backup
@@ -250,9 +250,9 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 	defer tx.Rollback()
 
 	// Mapas de ID-antiguo → ID-nuevo para resolver referencias
-	mapaJugadores := make(map[int]int)   // ID backup → ID en BD
-	mapaTemporadas := make(map[int]int)  // ID backup → ID en BD
-	mapaSesiones := make(map[int]int)    // ID backup → ID en BD
+	mapaJugadores := make(map[int]int)  // ID backup → ID en BD
+	mapaTemporadas := make(map[int]int) // ID backup → ID en BD
+	mapaSesiones := make(map[int]int)   // ID backup → ID en BD
 
 	// ── Jugadores ──
 	// Estrategia: buscar por nombre. Si existe, usar su ID. Si no, insertar.

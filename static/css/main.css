@@ -734,8 +734,10 @@ textarea.form-input { height: auto; min-height: 80px; resize: vertical; line-hei
   .nav-inner { padding: 0 1rem; gap: 0.75rem; }
   .admin-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .ranking-table th:nth-child(n+5),
-  .ranking-table td:nth-child(n+5) { display: none; }
+  /* En móvil ocultamos Partidas y Derrotas, pero mantenemos Jugador, Victorias, Win rate y Racha */
+  .col-hide-mobile { display: none; }
+  /* Con 5 columnas visibles, apretamos el padding para que quepa sin cortarse */
+  .ranking-table th, .ranking-table td { padding-left: 7px; padding-right: 7px; }
   .h2h-container { flex-direction: column; gap: 1rem; }
 
   /* Convertir nav-links en barra inferior fija */
@@ -803,3 +805,57 @@ hr.divider {
   border-top: 0.5px solid var(--border);
   margin: 1.25rem 0;
 }
+
+/* === SELECTOR DE TEMPORADA === */
+.temporada-selector { margin: 0; }
+.temporada-select {
+  width: auto;
+  height: 34px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* === CABECERAS ORDENABLES === */
+.ranking-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.1s;
+}
+.ranking-table th.sortable:hover { color: var(--text-muted); }
+.ranking-table th.sort-asc,
+.ranking-table th.sort-desc { color: var(--text); }
+.ranking-table th.sort-asc::after  { content: " ↑"; }
+.ranking-table th.sort-desc::after { content: " ↓"; }
+
+/* === GRÁFICA (SVG) === */
+.chart-svg { width: 100%; height: auto; min-width: 460px; display: block; }
+.chart-grid { stroke: var(--border); stroke-width: 0.5; }
+.chart-axis { fill: var(--text-faint); font-size: 10px; font-family: var(--font); }
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--border);
+}
+.legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-muted); }
+.legend-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+
+/* === MATRIZ DE RESULTADOS (captura rápida) === */
+.vista-toggle { margin-bottom: 1rem; }
+.matriz-wrap { overflow-x: auto; }
+.matriz-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.matriz-table th,
+.matriz-table td { padding: 6px 8px; border-bottom: 0.5px solid var(--border); text-align: center; white-space: nowrap; }
+.matriz-table th { font-size: 11px; font-weight: 500; color: var(--text-faint); }
+.matriz-table th.matriz-col { font-size: 15px; }
+.matriz-table td.matriz-nombre,
+.matriz-table th.matriz-nombre { text-align: left; }
+.matriz-table tr:last-child td { border-bottom: none; }
+.matriz-table tr.fila-inactiva { opacity: 0.38; }
+.matriz-diag { color: var(--text-faint); }
+.matriz-vict,
+.matriz-juega { width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent); }

@@ -34,14 +34,10 @@ func (a *AppHandlers) Inicio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	temporada, err := db.ObtenerTemporadaActiva(a.DB)
-	if err != nil {
-		// No hay temporada activa, mostrar página vacía
-		a.renderizar(w, "inicio.html", map[string]interface{}{
-			"Temporada": nil,
-			"Ranking":   nil,
-			"SinDatos":  true,
-		})
+	temporada, temporadas, ok := a.resolverTemporada(r)
+	if !ok {
+		// No hay ninguna temporada, mostrar página vacía
+		a.renderizar(w, "inicio.html", map[string]interface{}{"SinDatos": true})
 		return
 	}
 
@@ -56,9 +52,28 @@ func (a *AppHandlers) Inicio(w http.ResponseWriter, r *http.Request) {
 	colorWR, wrPct := db.ObtenerColorMasWinRate(a.DB, temporada.ID)
 	sesiones := db.ContarSesionesPorTemporada(a.DB, temporada.ID)
 
+	// KPIs de líderes, derivados del ranking ya calculado (sin consultas extra).
+	// El ranking viene ordenado por victorias desc, así que el primero con victorias
+	// es el líder por victorias.
+	var liderVict, liderWR *models.FilaRanking
+	for i := range ranking {
+		f := &ranking[i]
+		if f.Victorias > 0 && (liderVict == nil || f.Victorias > liderVict.Victorias) {
+			liderVict = f
+		}
+		if f.Partidas > 0 && (liderWR == nil ||
+			f.WinRate > liderWR.WinRate ||
+			(f.WinRate == liderWR.WinRate && f.Partidas > liderWR.Partidas)) {
+			liderWR = f
+		}
+	}
+
 	a.renderizar(w, "inicio.html", map[string]interface{}{
 		"Temporada":      temporada,
+		"Temporadas":     temporadas,
 		"Ranking":        ranking,
+		"LiderVict":      liderVict,
+		"LiderWR":        liderWR,
 		"ColorTop":       colorTop,
 		"ColorTopNombre": models.NombreColor(colorTop),
 		"ColorWR":        colorWR,
@@ -71,8 +86,8 @@ func (a *AppHandlers) Inicio(w http.ResponseWriter, r *http.Request) {
 
 // Historial muestra el historial de sesiones de la temporada activa
 func (a *AppHandlers) Historial(w http.ResponseWriter, r *http.Request) {
-	temporada, err := db.ObtenerTemporadaActiva(a.DB)
-	if err != nil {
+	temporada, temporadas, ok := a.resolverTemporada(r)
+	if !ok {
 		a.renderizar(w, "historial.html", map[string]interface{}{"SinDatos": true})
 		return
 	}
@@ -90,10 +105,11 @@ func (a *AppHandlers) Historial(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.renderizar(w, "historial.html", map[string]interface{}{
-		"Temporada": temporada,
-		"Sesiones":  sesiones,
-		"Ganadores": ganadores,
-		"SinDatos":  len(sesiones) == 0,
+		"Temporada":  temporada,
+		"Temporadas": temporadas,
+		"Sesiones":   sesiones,
+		"Ganadores":  ganadores,
+		"SinDatos":   len(sesiones) == 0,
 	})
 }
 
@@ -124,8 +140,8 @@ func (a *AppHandlers) DetalleSesion(w http.ResponseWriter, r *http.Request) {
 
 // Estadisticas muestra estadísticas generales y head-to-head
 func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
-	temporada, err := db.ObtenerTemporadaActiva(a.DB)
-	if err != nil {
+	temporada, temporadas, ok := a.resolverTemporada(r)
+	if !ok {
 		a.renderizar(w, "estadisticas.html", map[string]interface{}{"SinDatos": true})
 		return
 	}
@@ -152,6 +168,10 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 	// Distribución de colores del grupo
 	distColores, _ := db.ObtenerDistribucionColoresGrupo(a.DB, temporada.ID)
 
+	// Gráfica de evolución del ranking (victorias acumuladas por sesión)
+	evolucion, _ := db.ObtenerEvolucionVictorias(a.DB, temporada.ID)
+	graficaEvolucion := construirGraficaEvolucion(evolucion)
+
 	// Head-to-head extendido si se especifican los jugadores
 	j1Str := r.URL.Query().Get("j1")
 	j2Str := r.URL.Query().Get("j2")
@@ -169,14 +189,16 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.renderizar(w, "estadisticas.html", map[string]interface{}{
-		"Temporada":         temporada,
-		"Jugadores":         jugadores,
-		"JugadoresStats":    jugadoresStats,
-		"DistColores":       distColores,
-		"H2H":               h2h,
-		"J1Sel":             j1Str,
-		"J2Sel":             j2Str,
-		"SinDatos":          len(jugadores) == 0,
+		"Temporada":        temporada,
+		"Temporadas":       temporadas,
+		"Jugadores":        jugadores,
+		"JugadoresStats":   jugadoresStats,
+		"DistColores":      distColores,
+		"GraficaEvolucion": graficaEvolucion,
+		"H2H":              h2h,
+		"J1Sel":            j1Str,
+		"J2Sel":            j2Str,
+		"SinDatos":         len(jugadores) == 0,
 	})
 }
 
@@ -210,6 +232,32 @@ func (a *AppHandlers) ResumenTemporada(w http.ResponseWriter, r *http.Request) {
 }
 
 // ========== HELPERS ==========
+
+// resolverTemporada elige la temporada a mostrar: la del parámetro ?temporada=ID si
+// es válido; si no, la activa; y si no hay activa, la más reciente. Devuelve también
+// la lista completa (para el selector) y si existe alguna temporada.
+func (a *AppHandlers) resolverTemporada(r *http.Request) (models.Temporada, []models.Temporada, bool) {
+	temporadas, err := db.ObtenerTemporadas(a.DB)
+	if err != nil {
+		log.Println("Error al obtener temporadas:", err)
+	}
+	if idStr := r.URL.Query().Get("temporada"); idStr != "" {
+		if id, err := strconv.Atoi(idStr); err == nil {
+			for _, t := range temporadas {
+				if t.ID == id {
+					return t, temporadas, true
+				}
+			}
+		}
+	}
+	if t, err := db.ObtenerTemporadaActiva(a.DB); err == nil {
+		return t, temporadas, true
+	}
+	if len(temporadas) > 0 {
+		return temporadas[0], temporadas, true
+	}
+	return models.Temporada{}, temporadas, false
+}
 
 // renderizar ejecuta el template dado con los datos proporcionados
 func (a *AppHandlers) renderizar(w http.ResponseWriter, tmpl string, datos interface{}) {

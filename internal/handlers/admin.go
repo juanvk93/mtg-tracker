@@ -293,11 +293,37 @@ func (a *AppHandlers) AdminFormResultados(w http.ResponseWriter, r *http.Request
 	// Cargar resultados existentes para pre-rellenar el formulario
 	detalle, _ := db.ObtenerDetalleSesion(a.DB, id)
 
+	// Mapas de pre-relleno para el modo matriz (y consistencia con la vista detallada)
+	participa := map[int]bool{}
+	victMap := map[int]map[int]bool{}
+	colorMap := map[int]map[string]bool{}
+	for _, j := range jugadores {
+		victMap[j.ID] = map[int]bool{}
+		colorMap[j.ID] = map[string]bool{}
+	}
+	for _, rd := range detalle.Resultados {
+		participa[rd.Jugador.ID] = true
+		if m, ok := victMap[rd.Jugador.ID]; ok {
+			for _, v := range rd.Victorias {
+				m[v.ID] = true
+			}
+		}
+		if m, ok := colorMap[rd.Jugador.ID]; ok {
+			for _, c := range rd.Colores {
+				m[c] = true
+			}
+		}
+	}
+
 	a.renderizar(w, "resultados.html", map[string]interface{}{
-		"Sesion":    sesion,
-		"Jugadores": jugadores,
-		"Detalle":   detalle,
-		"Colores":   []string{"W", "U", "B", "R", "G"},
+		"Sesion":        sesion,
+		"Jugadores":     jugadores,
+		"Detalle":       detalle,
+		"Colores":       []string{"W", "U", "B", "R", "G"},
+		"Participa":     participa,
+		"VictMap":       victMap,
+		"ColorMap":      colorMap,
+		"SinResultados": len(detalle.Resultados) == 0,
 	})
 }
 

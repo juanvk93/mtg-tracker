@@ -2,6 +2,10 @@
 
 // Activar/desactivar estilo visual de checkboxes personalizados
 document.addEventListener('DOMContentLoaded', () => {
+  // Tablas ordenables (ranking) y modo matriz de resultados
+  initSortableTables();
+  initMatrizResultados();
+
   // Checkboxes personalizados (colores maná y rivales)
   document.querySelectorAll('.mana-checkbox, .checkbox-label').forEach(label => {
     const input = label.querySelector('input[type="checkbox"]');
@@ -89,7 +93,8 @@ function actualizarRivalesVisibles() {
     ? jugadoresInput.value.split(',').filter(Boolean)
     : [];
 
-  // Recorrer todos los checkbox de tipo "victoria_*"
+  // Recorrer todos los checkbox de tipo "victoria_*" que estén dentro de un
+  // .checkbox-label (los de la vista detallada; la matriz se gestiona aparte)
   document.querySelectorAll('input[type="checkbox"][name^="victoria_"]').forEach(function(input) {
     const rivalID = input.value;
     const label = input.closest('.checkbox-label');
@@ -107,4 +112,100 @@ function actualizarRivalesVisibles() {
       }
     }
   });
+}
+
+// === ORDENAR TABLAS POR COLUMNA ===
+// Cualquier tabla .sortable-table cuyas <th> tengan la clase .sortable se ordena
+// al hacer clic en la cabecera. Usa data-val en las celdas para números/porcentajes.
+function initSortableTables() {
+  document.querySelectorAll('table.sortable-table').forEach(function(table) {
+    table.querySelectorAll('thead th.sortable').forEach(function(th) {
+      th.addEventListener('click', function() { sortTableByHeader(table, th); });
+    });
+  });
+}
+
+function sortTableByHeader(table, th) {
+  const colIndex = th.cellIndex;
+  const type = th.dataset.sort === 'num' ? 'num' : 'text';
+  const tbody = table.querySelector('tbody');
+  if (!tbody) return;
+
+  // Dirección: si ya está activa, alterna; si no, num descendente / texto ascendente.
+  let asc;
+  if (th.classList.contains('sort-asc')) asc = false;
+  else if (th.classList.contains('sort-desc')) asc = true;
+  else asc = (type === 'text');
+
+  const valorDe = function(row) {
+    const cell = row.children[colIndex];
+    if (!cell) return type === 'num' ? 0 : '';
+    const raw = cell.dataset.val !== undefined ? cell.dataset.val : cell.textContent.trim();
+    if (type === 'num') { const n = parseFloat(raw); return isNaN(n) ? 0 : n; }
+    return raw.toLowerCase();
+  };
+
+  const rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+  rows.sort(function(a, b) {
+    const va = valorDe(a), vb = valorDe(b);
+    if (va < vb) return asc ? -1 : 1;
+    if (va > vb) return asc ? 1 : -1;
+    return 0;
+  });
+  rows.forEach(function(r) { tbody.appendChild(r); });
+
+  table.querySelectorAll('thead th').forEach(function(h) { h.classList.remove('sort-asc', 'sort-desc'); });
+  th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+
+  // Renumerar la columna de posición (#) según el nuevo orden visible
+  tbody.querySelectorAll('tr .rank-num').forEach(function(c, i) { c.textContent = i + 1; });
+}
+
+// === MODO MATRIZ DE RESULTADOS ===
+// Vista rápida: una casilla (fila, columna) = "el jugador de la fila venció al de la
+// columna". Genera el mismo POST que la vista detallada.
+function initMatrizResultados() {
+  const form = document.getElementById('form-matriz');
+  if (!form) return;
+  const hidden = document.getElementById('matriz-jugadores');
+  const juegaBoxes = form.querySelectorAll('.matriz-juega');
+
+  function refrescar() {
+    const juega = {};
+    juegaBoxes.forEach(function(cb) { if (cb.checked) juega[cb.dataset.jug] = true; });
+    hidden.value = Object.keys(juega).join(',');
+
+    form.querySelectorAll('tr[data-jug]').forEach(function(tr) {
+      tr.classList.toggle('fila-inactiva', !juega[tr.dataset.jug]);
+    });
+    // Una victoria solo es válida si juegan tanto la fila como la columna
+    form.querySelectorAll('.matriz-vict').forEach(function(inp) {
+      const rowId = inp.closest('tr').dataset.jug;
+      const colId = inp.value;
+      const ok = juega[rowId] && juega[colId];
+      inp.disabled = !ok;
+      if (!ok) inp.checked = false;
+    });
+    // Colores: habilitados solo si la fila juega
+    form.querySelectorAll('.matriz-color-input').forEach(function(inp) {
+      const rowId = inp.closest('tr').dataset.jug;
+      inp.disabled = !juega[rowId];
+    });
+  }
+
+  juegaBoxes.forEach(function(cb) { cb.addEventListener('change', refrescar); });
+  refrescar();
+
+  // Alternar entre vista detallada y matriz
+  const btn = document.getElementById('btn-vista-matriz');
+  const detallada = document.getElementById('form-resultados');
+  if (btn && detallada) {
+    btn.addEventListener('click', function() {
+      const mostrarMatriz = form.style.display === 'none';
+      form.style.display = mostrarMatriz ? 'block' : 'none';
+      detallada.style.display = mostrarMatriz ? 'none' : 'block';
+      btn.textContent = mostrarMatriz ? '📝 Vista detallada' : '⚡ Vista rápida (matriz)';
+      if (mostrarMatriz) refrescar();
+    });
+  }
 }

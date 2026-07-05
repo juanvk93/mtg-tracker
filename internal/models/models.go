@@ -36,20 +36,20 @@ type ResultadoSesion struct {
 	ID        int
 	SesionID  int
 	JugadorID int
-	Victorias []int  // IDs de jugadores a los que ganó
-	Derrotas  []int  // IDs de jugadores contra los que perdió
+	Victorias []int    // IDs de jugadores a los que ganó
+	Derrotas  []int    // IDs de jugadores contra los que perdió
 	Colores   []string // colores jugados: W, U, B, R, G
 }
 
 // FilaRanking es una fila del ranking calculado
 type FilaRanking struct {
-	Jugador        Jugador
-	Partidas       int
-	Victorias      int
-	Derrotas       int
-	WinRate        float64
-	RachaActual    int    // positivo = racha de victorias, negativo = derrotas
-	RachaTipo      string // "W" o "L"
+	Jugador     Jugador
+	Partidas    int
+	Victorias   int
+	Derrotas    int
+	WinRate     float64
+	RachaActual int    // positivo = racha de victorias, negativo = derrotas
+	RachaTipo   string // "W" o "L"
 }
 
 // EstadisticaColor contiene estadísticas por color para un jugador
@@ -95,11 +95,11 @@ type RivalConWinRate struct {
 
 // DistribucionDrafts contiene el conteo de drafts mono/bi/tri-color de un jugador
 type DistribucionDrafts struct {
-	Mono      int // drafts de 1 color
-	Bicolor   int // drafts de 2 colores
-	Tricolor  int // drafts de 3 colores
-	MasColor  int // drafts de 4 o 5 colores
-	Total     int
+	Mono     int // drafts de 1 color
+	Bicolor  int // drafts de 2 colores
+	Tricolor int // drafts de 3 colores
+	MasColor int // drafts de 4 o 5 colores
+	Total    int
 }
 
 // H2HExtendido contiene el detalle de los enfrentamientos directos entre dos jugadores
@@ -110,13 +110,13 @@ type H2HExtendido struct {
 
 // EncuentroH2H representa un enfrentamiento concreto entre dos jugadores en una sesión
 type EncuentroH2H struct {
-	SesionID    int
-	Fecha       time.Time
-	Descripcion string
-	ColoresJ1   []string // colores que jugaba J1 en esa sesión
-	ColoresJ2   []string // colores que jugaba J2 en esa sesión
-	GanadasPorJ1 int     // partidas que J1 ganó a J2 en esa sesión
-	GanadasPorJ2 int     // partidas que J2 ganó a J1 en esa sesión
+	SesionID     int
+	Fecha        time.Time
+	Descripcion  string
+	ColoresJ1    []string // colores que jugaba J1 en esa sesión
+	ColoresJ2    []string // colores que jugaba J2 en esa sesión
+	GanadasPorJ1 int      // partidas que J1 ganó a J2 en esa sesión
+	GanadasPorJ2 int      // partidas que J2 ganó a J1 en esa sesión
 }
 
 // RachaRecord representa la mejor racha histórica de un jugador
@@ -127,39 +127,39 @@ type RachaRecord struct {
 
 // EstadisticasJugador agrupa todas las estadísticas individuales de un jugador
 type EstadisticasJugador struct {
-	Jugador             Jugador
-	Colores             []EstadisticaColor
-	CombinacionTop      *CombinacionColor // puede ser nil si no hay datos
-	MejorSesion         *MejorSesion      // puede ser nil
-	RivalTop            *RivalFrecuente   // rival más frecuente; puede ser nil
-	Verdugo             *RivalConWinRate  // rival contra quien peor win rate tiene; puede ser nil
-	Victima             *RivalConWinRate  // rival contra quien mejor win rate tiene; puede ser nil
-	RachaRecord         RachaRecord
-	PromedioVictorias   float64           // victorias / sesiones jugadas
-	SesionesJugadas     int
-	DesviacionWinRate   float64           // 0 = muy constante, valores altos = irregular
-	DistribucionDrafts  DistribucionDrafts
+	Jugador            Jugador
+	Colores            []EstadisticaColor
+	CombinacionTop     *CombinacionColor // puede ser nil si no hay datos
+	MejorSesion        *MejorSesion      // puede ser nil
+	RivalTop           *RivalFrecuente   // rival más frecuente; puede ser nil
+	Verdugo            *RivalConWinRate  // rival contra quien peor win rate tiene; puede ser nil
+	Victima            *RivalConWinRate  // rival contra quien mejor win rate tiene; puede ser nil
+	RachaRecord        RachaRecord
+	PromedioVictorias  float64 // victorias / sesiones jugadas
+	SesionesJugadas    int
+	DesviacionWinRate  float64 // 0 = muy constante, valores altos = irregular
+	DistribucionDrafts DistribucionDrafts
 }
 
 // DistribucionColor cuenta cuántas veces se ha jugado cada color en el grupo
 type DistribucionColor struct {
-	Color    string
-	Nombre   string
-	Veces    int
+	Color      string
+	Nombre     string
+	Veces      int
 	Porcentaje float64
 }
 
 // ResumenTemporada contiene el resumen ejecutivo de una temporada
 type ResumenTemporada struct {
-	Temporada       Temporada
-	TotalSesiones   int
-	TotalJugadores  int
-	TotalPartidas   int
-	Campeon         *FilaRanking // jugador con más victorias
-	Subcampeon      *FilaRanking // segundo en el ranking
-	Tercero         *FilaRanking // tercero en el ranking
-	ColorDominante  string       // color más jugado de la temporada
-	Ranking         []FilaRanking
+	Temporada      Temporada
+	TotalSesiones  int
+	TotalJugadores int
+	TotalPartidas  int
+	Campeon        *FilaRanking // jugador con más victorias
+	Subcampeon     *FilaRanking // segundo en el ranking
+	Tercero        *FilaRanking // tercero en el ranking
+	ColorDominante string       // color más jugado de la temporada
+	Ranking        []FilaRanking
 }
 
 // HeadToHead contiene el historial entre dos jugadores

@@ -14,9 +14,10 @@
   <div>
     <h1 class="page-title">Ranking{{if .Temporada}} · {{.Temporada.Anio}}{{end}}</h1>
     {{if .Temporada}}
-    <p class="page-subtitle">Temporada activa · {{.Sesiones}} sesión{{if ne .Sesiones 1}}es{{end}} jugada{{if ne .Sesiones 1}}s{{end}}</p>
+    <p class="page-subtitle">{{if eq .Temporada.Estado "cerrada"}}Temporada cerrada{{else}}Temporada activa{{end}} · {{.Sesiones}} sesión{{if ne .Sesiones 1}}es{{end}} jugada{{if ne .Sesiones 1}}s{{end}}</p>
     {{end}}
   </div>
+  {{template "selectorTemporada" .}}
 </div>
 
 {{if .SinDatos}}
@@ -28,6 +29,18 @@
 {{else}}
 
 <div class="stats-grid">
+  {{if .LiderVict}}
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:1.1rem">{{renderAvatar .LiderVict.Jugador.Avatar}} {{.LiderVict.Jugador.Nombre}}</div>
+    <div class="stat-label">🏆 Líder · {{.LiderVict.Victorias}} victoria{{if ne .LiderVict.Victorias 1}}s{{end}}</div>
+  </div>
+  {{end}}
+  {{if .LiderWR}}
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:1.1rem">{{renderAvatar .LiderWR.Jugador.Avatar}} {{.LiderWR.Jugador.Nombre}}</div>
+    <div class="stat-label">📈 Mejor win rate · {{formatPct .LiderWR.WinRate}}</div>
+  </div>
+  {{end}}
   <div class="stat-card">
     <div class="stat-value">{{len .Ranking}}</div>
     <div class="stat-label">Jugadores</div>
@@ -51,23 +64,23 @@
 </div>
 
 <div class="card" style="padding:0;overflow:hidden">
-  <table class="ranking-table">
+  <table class="ranking-table sortable-table">
     <thead>
       <tr>
         <th style="width:3rem">#</th>
-        <th>Jugador</th>
-        <th>Partidas</th>
-        <th>Victorias</th>
-        <th>Derrotas</th>
-        <th>Win rate</th>
-        <th>Racha</th>
+        <th class="sortable" data-sort="text">Jugador</th>
+        <th class="sortable col-hide-mobile" data-sort="num">Partidas</th>
+        <th class="sortable" data-sort="num">Victorias</th>
+        <th class="sortable col-hide-mobile" data-sort="num">Derrotas</th>
+        <th class="sortable" data-sort="num">Win rate</th>
+        <th class="sortable" data-sort="num">Racha</th>
       </tr>
     </thead>
     <tbody>
       {{range $i, $fila := .Ranking}}
       <tr>
         <td><span class="rank-num">{{add1 $i}}</span></td>
-        <td>
+        <td data-val="{{$fila.Jugador.Nombre}}">
           <div class="jugador-cell">
             <div class="avatar" style="background-color:{{$fila.Jugador.Color}}18;border-color:{{$fila.Jugador.Color}}30">
               {{renderAvatar $fila.Jugador.Avatar}}
@@ -75,15 +88,15 @@
             <span class="jugador-nombre">{{$fila.Jugador.Nombre}}</span>
           </div>
         </td>
-        <td style="color:var(--text-muted)">{{$fila.Partidas}}</td>
-        <td><strong class="vs-win">{{$fila.Victorias}}</strong></td>
-        <td><strong class="vs-loss">{{$fila.Derrotas}}</strong></td>
-        <td>
+        <td class="col-hide-mobile" data-val="{{$fila.Partidas}}" style="color:var(--text-muted)">{{$fila.Partidas}}</td>
+        <td data-val="{{$fila.Victorias}}"><strong class="vs-win">{{$fila.Victorias}}</strong></td>
+        <td class="col-hide-mobile" data-val="{{$fila.Derrotas}}"><strong class="vs-loss">{{$fila.Derrotas}}</strong></td>
+        <td data-val="{{$fila.WinRate}}">
           <span class="win-rate {{if ge $fila.WinRate 60.0}}alta{{else if ge $fila.WinRate 40.0}}media{{else}}baja{{end}}">
             {{formatPct $fila.WinRate}}
           </span>
         </td>
-        <td>
+        <td data-val="{{if eq $fila.RachaTipo "W"}}{{$fila.RachaActual}}{{else if eq $fila.RachaTipo "L"}}-{{$fila.RachaActual}}{{else}}0{{end}}">
           {{if eq $fila.RachaActual 0}}
             <span class="racha">—</span>
           {{else if eq $fila.RachaTipo "W"}}
@@ -97,6 +110,7 @@
     </tbody>
   </table>
 </div>
+<p class="text-xs text-faint" style="margin-top:8px">Toca una cabecera para ordenar la tabla.</p>
 {{end}}
 
 </main>

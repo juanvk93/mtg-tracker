@@ -621,65 +621,56 @@ func calcularRacha(historial []sesionVD) (int, string) {
 
 // ========== ESTADÍSTICAS ==========
 
-// ObtenerEstadisticasColores devuelve el win rate por color de un jugador en la temporada.
-// Para cada color: itera los resultados donde usó ese color y suma V y D directamente.
-// Win rate = victorias / (victorias + derrotas) × 100.
+// ObtenerEstadisticasColores devuelve, por color, las estadísticas de un jugador en la
+// temporada, en UNA sola consulta (antes ~10 por jugador). Veces = nº de drafts con ese
+// color; Partidas = partidas individuales (V+D); Win rate = V/(V+D)×100.
 func ObtenerEstadisticasColores(db *sql.DB, jugadorID, temporadaID int) ([]models.EstadisticaColor, error) {
-	colores := []string{"W", "U", "B", "R", "G"}
-	var stats []models.EstadisticaColor
+	rows, err := db.Query(`
+		SELECT
+			cj.color,
+			COUNT(DISTINCT r.id)      AS veces,
+			COALESCE(SUM(pj.vict), 0) AS victorias,
+			COALESCE(SUM(pj.derr), 0) AS derrotas
+		FROM colores_jugados cj
+		JOIN resultados r ON r.id = cj.resultado_id
+		JOIN sesiones s ON s.id = r.sesion_id
+		JOIN (
+			SELECT r2.id,
+				(SELECT COUNT(*) FROM victorias v
+					WHERE v.resultado_id = r2.id) AS vict,
+				(SELECT COUNT(*) FROM victorias v2
+					JOIN resultados r3 ON r3.id = v2.resultado_id
+					WHERE r3.sesion_id = r2.sesion_id AND v2.rival_id = r2.jugador_id) AS derr
+			FROM resultados r2
+		) pj ON pj.id = r.id
+		WHERE r.jugador_id = $1 AND s.temporada_id = $2
+		GROUP BY cj.color`, jugadorID, temporadaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	for _, color := range colores {
-		// Obtener los resultados donde este jugador usó este color
-		rows, err := db.Query(`
-			SELECT r.id, r.sesion_id
-			FROM resultados r
-			JOIN colores_jugados cj ON cj.resultado_id = r.id
-			JOIN sesiones s ON s.id = r.sesion_id
-			WHERE r.jugador_id = $1 AND cj.color = $2 AND s.temporada_id = $3`,
-			jugadorID, color, temporadaID)
-		if err != nil {
+	// Ordenar en el orden canónico WUBRG
+	orden := map[string]int{"W": 0, "U": 1, "B": 2, "R": 3, "G": 4}
+	var stats []models.EstadisticaColor
+	for rows.Next() {
+		var ec models.EstadisticaColor
+		var derrotas int
+		if err := rows.Scan(&ec.Color, &ec.Veces, &ec.Victorias, &derrotas); err != nil {
 			return nil, err
 		}
-
-		type par struct{ resultadoID, sesionID int }
-		var pares []par
-		for rows.Next() {
-			var p par
-			rows.Scan(&p.resultadoID, &p.sesionID)
-			pares = append(pares, p)
-		}
-		rows.Close()
-
-		if len(pares) == 0 {
-			continue
-		}
-
-		var ec models.EstadisticaColor
-		ec.Color = color
-		ec.Nombre = models.NombreColor(color)
-
-		for _, p := range pares {
-			var v int
-			db.QueryRow(`SELECT COUNT(*) FROM victorias WHERE resultado_id=$1`, p.resultadoID).Scan(&v)
-			ec.Victorias += v
-
-			var d int
-			db.QueryRow(`
-				SELECT COUNT(*)
-				FROM victorias v2
-				JOIN resultados r2 ON r2.id = v2.resultado_id
-				WHERE r2.sesion_id = $1 AND v2.rival_id = $2`,
-				p.sesionID, jugadorID).Scan(&d)
-			ec.Partidas += v + d
-		}
-
+		ec.Partidas = ec.Victorias + derrotas
 		if ec.Partidas == 0 {
-			continue
+			continue // color usado pero sin partidas registradas (comportamiento previo)
 		}
+		ec.Nombre = models.NombreColor(ec.Color)
 		ec.WinRate = float64(ec.Victorias) / float64(ec.Partidas) * 100
 		stats = append(stats, ec)
 	}
-
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(stats, func(i, j int) bool { return orden[stats[i].Color] < orden[stats[j].Color] })
 	return stats, nil
 }
 

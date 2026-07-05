@@ -15,51 +15,48 @@ import (
 // ObtenerCombinacionTopJugador devuelve la combinación de colores más frecuente
 // de un jugador en una temporada. Devuelve nil si no hay datos.
 func ObtenerCombinacionTopJugador(db *sql.DB, jugadorID, temporadaID int) (*models.CombinacionColor, error) {
-	// Obtener todas las combinaciones de colores que ha jugado en cada resultado
+	// Colores de cada resultado del jugador en UNA sola consulta (antes N+1),
+	// agrupados por resultado en memoria.
 	rows, err := db.Query(`
-		SELECT r.id
+		SELECT r.id, cj.color
 		FROM resultados r
 		JOIN sesiones s ON s.id = r.sesion_id
-		WHERE r.jugador_id = $1 AND s.temporada_id = $2`, jugadorID, temporadaID)
+		LEFT JOIN colores_jugados cj ON cj.resultado_id = r.id
+		WHERE r.jugador_id = $1 AND s.temporada_id = $2
+		ORDER BY r.id, cj.color`, jugadorID, temporadaID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var resultadoIDs []int
+	coloresPorResultado := map[int][]string{}
+	var orden []int
 	for rows.Next() {
-		var id int
-		if err := rows.Scan(&id); err != nil {
+		var rid int
+		var color sql.NullString
+		if err := rows.Scan(&rid, &color); err != nil {
 			return nil, err
 		}
-		resultadoIDs = append(resultadoIDs, id)
+		if _, ok := coloresPorResultado[rid]; !ok {
+			orden = append(orden, rid)
+			coloresPorResultado[rid] = nil
+		}
+		if color.Valid {
+			coloresPorResultado[rid] = append(coloresPorResultado[rid], color.String)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	if len(resultadoIDs) == 0 {
-		return nil, nil
-	}
-
-	// Para cada resultado, obtener su combinación de colores y contarla
-	combinaciones := make(map[string]int) // clave = "B,U" ordenado
-	for _, rid := range resultadoIDs {
-		cRows, err := db.Query(`SELECT color FROM colores_jugados WHERE resultado_id=$1 ORDER BY color`, rid)
-		if err != nil {
-			return nil, err
-		}
-		var colores []string
-		for cRows.Next() {
-			var c string
-			cRows.Scan(&c)
-			colores = append(colores, c)
-		}
-		cRows.Close()
-
-		if len(colores) == 0 {
+	// Contar la frecuencia de cada combinación (clave = "B,U" ordenado)
+	combinaciones := make(map[string]int)
+	for _, rid := range orden {
+		cs := coloresPorResultado[rid]
+		if len(cs) == 0 {
 			continue
 		}
-
-		clave := strings.Join(colores, ",")
-		combinaciones[clave]++
+		combinaciones[strings.Join(cs, ",")]++
 	}
 
 	if len(combinaciones) == 0 {
@@ -368,7 +365,17 @@ func ObtenerVerdugoYVictima(db *sql.DB, jugadorID, temporadaID int) (*models.Riv
 		return nil, nil, nil
 	}
 
-	// Cargar info de los rivales y calcular win rate
+	// Cargar todos los jugadores UNA vez para resolver nombres (antes era 1 consulta por rival)
+	todos, err := ObtenerJugadores(db)
+	if err != nil {
+		return nil, nil, err
+	}
+	mapaJugadores := make(map[int]models.Jugador, len(todos))
+	for _, j := range todos {
+		mapaJugadores[j.ID] = j
+	}
+
+	// Calcular win rate y quedarnos con verdugo (peor WR) y víctima (mejor WR)
 	const minPartidas = 2 // umbral mínimo para considerar a un rival
 	var verdugo, victima *models.RivalConWinRate
 	var peorWR, mejorWR float64 = 101, -1
@@ -380,8 +387,8 @@ func ObtenerVerdugoYVictima(db *sql.DB, jugadorID, temporadaID int) (*models.Riv
 		}
 		rf.WinRate = float64(rf.Victorias) / float64(rf.Partidas) * 100
 
-		rival, err := ObtenerJugador(db, rid)
-		if err != nil {
+		rival, ok := mapaJugadores[rid]
+		if !ok {
 			continue
 		}
 		rf.Rival = rival
@@ -418,28 +425,23 @@ func ObtenerVerdugoYVictima(db *sql.DB, jugadorID, temporadaID int) (*models.Riv
 func ObtenerDistribucionDraftsJugador(db *sql.DB, jugadorID, temporadaID int) (models.DistribucionDrafts, error) {
 	var dist models.DistribucionDrafts
 
+	// Nº de colores por resultado del jugador, en UNA sola consulta (antes N+1).
 	rows, err := db.Query(`
-		SELECT r.id
+		SELECT COUNT(cj.id) AS n
 		FROM resultados r
 		JOIN sesiones s ON s.id = r.sesion_id
-		WHERE r.jugador_id = $1 AND s.temporada_id = $2`, jugadorID, temporadaID)
+		LEFT JOIN colores_jugados cj ON cj.resultado_id = r.id
+		WHERE r.jugador_id = $1 AND s.temporada_id = $2
+		GROUP BY r.id`, jugadorID, temporadaID)
 	if err != nil {
 		return dist, err
 	}
 	defer rows.Close()
 
-	var resultadoIDs []int
 	for rows.Next() {
-		var id int
-		rows.Scan(&id)
-		resultadoIDs = append(resultadoIDs, id)
-	}
-
-	for _, rid := range resultadoIDs {
 		var n int
-		err := db.QueryRow(`SELECT COUNT(*) FROM colores_jugados WHERE resultado_id=$1`, rid).Scan(&n)
-		if err != nil {
-			continue
+		if err := rows.Scan(&n); err != nil {
+			return dist, err
 		}
 		switch n {
 		case 0:
@@ -458,7 +460,7 @@ func ObtenerDistribucionDraftsJugador(db *sql.DB, jugadorID, temporadaID int) (m
 		}
 	}
 
-	return dist, nil
+	return dist, rows.Err()
 }
 
 // ObtenerWinRatesPorSesion devuelve los win rates del jugador en cada sesión jugada.
@@ -608,6 +610,36 @@ func ObtenerH2HExtendido(db *sql.DB, j1ID, j2ID int) (*models.H2HExtendido, erro
 	return resultado, nil
 }
 
+// ObtenerMatrizH2H devuelve, para una temporada, las victorias de cada jugador sobre
+// cada rival: wins[ganadorID][rivalID] = nº de veces que el ganador venció al rival.
+// Una sola consulta agregada.
+func ObtenerMatrizH2H(db *sql.DB, temporadaID int) (map[int]map[int]int, error) {
+	rows, err := db.Query(`
+		SELECT r.jugador_id AS ganador, v.rival_id, COUNT(*)
+		FROM victorias v
+		JOIN resultados r ON r.id = v.resultado_id
+		JOIN sesiones s ON s.id = r.sesion_id
+		WHERE s.temporada_id = $1
+		GROUP BY r.jugador_id, v.rival_id`, temporadaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	wins := map[int]map[int]int{}
+	for rows.Next() {
+		var ganador, rival, n int
+		if err := rows.Scan(&ganador, &rival, &n); err != nil {
+			return nil, err
+		}
+		if wins[ganador] == nil {
+			wins[ganador] = map[int]int{}
+		}
+		wins[ganador][rival] = n
+	}
+	return wins, rows.Err()
+}
+
 // ObtenerResumenTemporada genera el resumen ejecutivo de una temporada (sea activa o cerrada).
 // Incluye campeón, subcampeón, tercero, totales y color dominante.
 func ObtenerResumenTemporada(db *sql.DB, temporadaID int) (*models.ResumenTemporada, error) {
@@ -652,6 +684,76 @@ func ObtenerResumenTemporada(db *sql.DB, temporadaID int) (*models.ResumenTempor
 	resumen.ColorDominante = ObtenerColorMasJugado(db, temporadaID)
 
 	return resumen, nil
+}
+
+// ObtenerHistorialJugador devuelve, por sesión (más reciente primero), el resultado
+// resumido de un jugador en una temporada: victorias, derrotas, colores y si fue quien
+// más victorias logró esa sesión. Usa 2 consultas (no N+1).
+func ObtenerHistorialJugador(db *sql.DB, jugadorID, temporadaID int) ([]models.DraftJugador, error) {
+	rows, err := db.Query(`
+		SELECT s.id, s.fecha, s.descripcion,
+			(SELECT COUNT(*) FROM victorias v
+				JOIN resultados r2 ON r2.id = v.resultado_id
+				WHERE r2.jugador_id = $1 AND r2.sesion_id = s.id) AS vict,
+			(SELECT COUNT(*) FROM victorias v
+				JOIN resultados r2 ON r2.id = v.resultado_id
+				WHERE v.rival_id = $1 AND r2.sesion_id = s.id) AS derr,
+			(SELECT COALESCE(MAX(cnt), 0) FROM (
+				SELECT COUNT(*) AS cnt FROM victorias v
+				JOIN resultados r3 ON r3.id = v.resultado_id
+				WHERE r3.sesion_id = s.id
+				GROUP BY r3.jugador_id
+			) m) AS maxvict
+		FROM sesiones s
+		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $1
+		WHERE s.temporada_id = $2
+		ORDER BY s.fecha DESC`, jugadorID, temporadaID)
+	if err != nil {
+		return nil, err
+	}
+
+	var drafts []models.DraftJugador
+	idxPorSesion := map[int]int{}
+	for rows.Next() {
+		var d models.DraftJugador
+		var maxVict int
+		if err := rows.Scan(&d.SesionID, &d.Fecha, &d.Descripcion, &d.Victorias, &d.Derrotas, &maxVict); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		d.Top = d.Victorias > 0 && d.Victorias == maxVict
+		idxPorSesion[d.SesionID] = len(drafts)
+		drafts = append(drafts, d)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	// Colores por sesión (una sola consulta)
+	cRows, err := db.Query(`
+		SELECT r.sesion_id, cj.color
+		FROM colores_jugados cj
+		JOIN resultados r ON r.id = cj.resultado_id
+		JOIN sesiones s ON s.id = r.sesion_id
+		WHERE r.jugador_id = $1 AND s.temporada_id = $2
+		ORDER BY cj.color`, jugadorID, temporadaID)
+	if err != nil {
+		return nil, err
+	}
+	defer cRows.Close()
+	for cRows.Next() {
+		var sesionID int
+		var color string
+		if err := cRows.Scan(&sesionID, &color); err != nil {
+			return nil, err
+		}
+		if i, ok := idxPorSesion[sesionID]; ok {
+			drafts[i].Colores = append(drafts[i].Colores, color)
+		}
+	}
+	return drafts, cRows.Err()
 }
 
 // EvolucionFila es una fila de la evolución de victorias por sesión (para la gráfica).

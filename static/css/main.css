@@ -806,6 +806,10 @@ hr.divider {
   margin: 1.25rem 0;
 }
 
+/* === ENLACE A PERFIL DE JUGADOR === */
+.jugador-link { text-decoration: none; color: inherit; display: inline-block; }
+.jugador-link:hover .jugador-nombre { text-decoration: underline; }
+
 /* === SELECTOR DE TEMPORADA === */
 .temporada-selector { margin: 0; }
 .temporada-select {
@@ -859,3 +863,13 @@ hr.divider {
 .matriz-diag { color: var(--text-faint); }
 .matriz-vict,
 .matriz-juega { width: 17px; height: 17px; cursor: pointer; accent-color: var(--accent); }
+
+/* Matriz head-to-head (dominancia) */
+.h2h-matriz th { font-size: 15px; }
+.h2h-cell { font-variant-numeric: tabular-nums; font-weight: 500; }
+.h2h-dom { background: rgba(45,122,71,0.14); color: #2d7a47; font-weight: 700; }
+.h2h-sub { background: rgba(160,57,26,0.12); color: #a0391a; }
+@media (prefers-color-scheme: dark) {
+  .h2h-dom { background: rgba(45,122,71,0.22); color: #5aba7a; }
+  .h2h-sub { background: rgba(160,57,26,0.20); color: #e0785a; }
+}

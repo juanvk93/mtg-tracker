@@ -56,7 +56,8 @@ type FilaRanking struct {
 type EstadisticaColor struct {
 	Color     string
 	Nombre    string
-	Partidas  int
+	Veces     int // nº de drafts (resultados) en los que jugó este color
+	Partidas  int // partidas individuales jugadas con este color (victorias + derrotas)
 	Victorias int
 	WinRate   float64
 }
@@ -147,6 +148,17 @@ type DistribucionColor struct {
 	Nombre     string
 	Veces      int
 	Porcentaje float64
+}
+
+// DraftJugador resume la participación de un jugador en una sesión (para su perfil).
+type DraftJugador struct {
+	SesionID    int
+	Fecha       time.Time
+	Descripcion string
+	Victorias   int
+	Derrotas    int
+	Colores     []string
+	Top         bool // fue quien más victorias tuvo esa sesión (empatado o en solitario)
 }
 
 // ResumenTemporada contiene el resumen ejecutivo de una temporada

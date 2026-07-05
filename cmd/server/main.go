@@ -54,6 +54,7 @@ func main() {
 	mux.HandleFunc("GET /historial", h.Historial)
 	mux.HandleFunc("GET /sesion/{id}", h.DetalleSesion)
 	mux.HandleFunc("GET /estadisticas", h.Estadisticas)
+	mux.HandleFunc("GET /jugador/{id}", h.PerfilJugador)
 	mux.HandleFunc("GET /changelog", h.Changelog)
 	mux.HandleFunc("GET /temporada/{id}/resumen", h.ResumenTemporada)
 

@@ -80,6 +80,44 @@
 </section>
 {{end}}
 
+<!-- Matriz head-to-head: todos contra todos -->
+{{if gt (len .MatrizJugadores) 1}}
+<section class="mb-4">
+  <div class="section-title">Dominancia (todos contra todos)</div>
+  <div class="card" style="padding:0">
+    <div style="overflow-x:auto">
+      <table class="matriz-table h2h-matriz">
+        <thead>
+          <tr>
+            <th class="matriz-nombre">Vence ＼ a</th>
+            {{range .MatrizJugadores}}<th title="{{.Nombre}}">{{renderAvatar .Avatar}}</th>{{end}}
+          </tr>
+        </thead>
+        <tbody>
+          {{range $row := .MatrizJugadores}}
+          <tr>
+            <td class="matriz-nombre">
+              <a href="/jugador/{{$row.ID}}" class="jugador-link"><span style="font-size:14px">{{renderAvatar $row.Avatar}}</span> {{$row.Nombre}}</a>
+            </td>
+            {{range $col := $.MatrizJugadores}}
+              {{if eq $row.ID $col.ID}}
+              <td class="matriz-diag">—</td>
+              {{else}}
+              {{$gana := index (index $.MatrizWins $row.ID) $col.ID}}
+              {{$recibe := index (index $.MatrizWins $col.ID) $row.ID}}
+              <td class="h2h-cell {{if gt $gana $recibe}}h2h-dom{{else if lt $gana $recibe}}h2h-sub{{end}}" title="{{$row.Nombre}} venció {{$gana}} a {{$col.Nombre}}">{{$gana}}</td>
+              {{end}}
+            {{end}}
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-faint" style="padding:8px 12px 12px;margin:0">Cada celda = victorias de la fila sobre la columna. <span style="color:#2d7a47">Verde</span> = domina; <span style="color:#a0391a">rojo</span> = le dominan.</p>
+  </div>
+</section>
+{{end}}
+
 <!-- Head to head extendido -->
 <section class="mb-4">
   <div class="section-title">Head to head</div>

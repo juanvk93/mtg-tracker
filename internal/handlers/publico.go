@@ -172,6 +172,13 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 	evolucion, _ := db.ObtenerEvolucionVictorias(a.DB, temporada.ID)
 	graficaEvolucion := construirGraficaEvolucion(evolucion)
 
+	// Matriz head-to-head (todos contra todos) sobre los jugadores que han jugado
+	matrizWins, _ := db.ObtenerMatrizH2H(a.DB, temporada.ID)
+	var matrizJugadores []models.Jugador
+	for _, js := range jugadoresStats {
+		matrizJugadores = append(matrizJugadores, js.Jugador)
+	}
+
 	// Head-to-head extendido si se especifican los jugadores
 	j1Str := r.URL.Query().Get("j1")
 	j2Str := r.URL.Query().Get("j2")
@@ -195,6 +202,8 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 		"JugadoresStats":   jugadoresStats,
 		"DistColores":      distColores,
 		"GraficaEvolucion": graficaEvolucion,
+		"MatrizJugadores":  matrizJugadores,
+		"MatrizWins":       matrizWins,
 		"H2H":              h2h,
 		"J1Sel":            j1Str,
 		"J2Sel":            j2Str,
@@ -228,6 +237,57 @@ func (a *AppHandlers) ResumenTemporada(w http.ResponseWriter, r *http.Request) {
 
 	a.renderizar(w, "resumen_temporada.html", map[string]interface{}{
 		"Resumen": resumen,
+	})
+}
+
+// PerfilJugador muestra la ficha completa de un jugador en la temporada seleccionada
+func (a *AppHandlers) PerfilJugador(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	jugador, err := db.ObtenerJugador(a.DB, id)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	temporada, temporadas, ok := a.resolverTemporada(r)
+	if !ok {
+		a.renderizar(w, "perfil_jugador.html", map[string]interface{}{
+			"Jugador":  jugador,
+			"SinDatos": true,
+		})
+		return
+	}
+
+	stats, _ := db.ObtenerEstadisticasCompletasJugador(a.DB, jugador, temporada.ID)
+	historial, _ := db.ObtenerHistorialJugador(a.DB, id, temporada.ID)
+
+	// Posición y fila en el ranking de la temporada
+	ranking, _ := db.ObtenerRanking(a.DB, temporada.ID)
+	var fila *models.FilaRanking
+	posicion := 0
+	for i := range ranking {
+		if ranking[i].Jugador.ID == id {
+			fila = &ranking[i]
+			posicion = i + 1
+			break
+		}
+	}
+
+	a.renderizar(w, "perfil_jugador.html", map[string]interface{}{
+		"Jugador":    jugador,
+		"Temporada":  temporada,
+		"Temporadas": temporadas,
+		"Stats":      stats,
+		"Historial":  historial,
+		"Fila":       fila,
+		"Posicion":   posicion,
+		"SinDatos":   fila == nil && len(historial) == 0,
 	})
 }
 

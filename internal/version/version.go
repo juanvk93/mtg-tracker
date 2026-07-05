@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.4.0"
+const Version = "1.5.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,21 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.5.0",
+			Fecha:   "2026-07-05",
+			Cambios: []string{
+				"Perfil de cada jugador: ficha con récord, colores jugados, destacados e historial de todos sus drafts",
+				"Selector de temporada en Ranking, Historial y Estadísticas para consultar temporadas cerradas",
+				"Ranking: KPIs de líder por victorias y por win rate, y ordenación por cualquier columna",
+				"El win rate ahora también se muestra en la tabla de ranking en móvil",
+				"Estadísticas: gráfica de evolución del ranking (victorias acumuladas por sesión)",
+				"Estadísticas: matriz head-to-head de todos contra todos (quién domina a quién)",
+				"Enlace desde el ranking a la ficha de cada jugador",
+				"Modo matriz para registrar resultados de una sesión de forma rápida",
+				"Rendimiento: ranking, detalle de sesión y estadísticas cargan con muchas menos consultas",
+			},
+		},
 		{
 			Version: "1.4.0",
 			Fecha:   "2026-05-11",

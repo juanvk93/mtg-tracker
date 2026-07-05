@@ -1,0 +1,190 @@
+{{define "perfil_jugador.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Jugador.Nombre}} — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+{{template "nav" .}}
+<main class="main">
+
+<div class="page-header">
+  <div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">
+      <a href="/" style="color:var(--text-muted);text-decoration:none">Ranking</a> ›
+    </div>
+    <h1 class="page-title" style="display:flex;align-items:center;gap:10px">
+      <span class="avatar" style="background-color:{{.Jugador.Color}}18;border-color:{{.Jugador.Color}}30">{{renderAvatar .Jugador.Avatar}}</span>
+      {{.Jugador.Nombre}}
+    </h1>
+    {{if .Temporada}}<p class="page-subtitle">Temporada {{.Temporada.Anio}}{{if eq .Temporada.Estado "cerrada"}} · cerrada{{end}}</p>{{end}}
+  </div>
+  {{template "selectorTemporada" .}}
+</div>
+
+{{if .SinDatos}}
+<div class="empty-state">
+  <div class="empty-icon">🃏</div>
+  <div class="empty-title">Sin participación esta temporada</div>
+  <p>{{.Jugador.Nombre}} no ha jugado ninguna sesión en esta temporada. Prueba a cambiar de temporada arriba.</p>
+</div>
+{{else}}
+
+<!-- Métricas principales -->
+<div class="stats-grid">
+  {{if .Fila}}
+  <div class="stat-card">
+    <div class="stat-value">#{{.Posicion}}</div>
+    <div class="stat-label">Posición</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value"><span class="vs-win">{{.Fila.Victorias}}</span><span style="color:var(--text-faint);font-size:1rem"> / </span><span class="vs-loss">{{.Fila.Derrotas}}</span></div>
+    <div class="stat-label">Victorias / Derrotas</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value win-rate {{if ge .Fila.WinRate 60.0}}alta{{else if ge .Fila.WinRate 40.0}}media{{else}}baja{{end}}">{{formatPct .Fila.WinRate}}</div>
+    <div class="stat-label">Win rate</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:1.3rem">
+      {{if eq .Fila.RachaActual 0}}<span class="racha">—</span>
+      {{else if eq .Fila.RachaTipo "W"}}<span class="racha win">{{.Fila.RachaActual}}V</span>
+      {{else}}<span class="racha loss">{{.Fila.RachaActual}}D</span>{{end}}
+    </div>
+    <div class="stat-label">Racha actual</div>
+  </div>
+  {{end}}
+  <div class="stat-card">
+    <div class="stat-value">{{printf "%.1f" .Stats.PromedioVictorias}}</div>
+    <div class="stat-label">Promedio V/sesión</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="font-size:1.3rem">
+      {{if eq (redondear .Stats.DesviacionWinRate) 0}}—{{else if le (redondear .Stats.DesviacionWinRate) 15}}Alta{{else if le (redondear .Stats.DesviacionWinRate) 30}}Media{{else}}Baja{{end}}
+    </div>
+    <div class="stat-label">Constancia</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:2rem">
+
+  <!-- Veces jugado cada color -->
+  {{if .Stats.Colores}}
+  <div class="card card-sm">
+    <div class="section-title">Colores jugados</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      {{range .Stats.Colores}}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="mana-badge mana-badge-{{.Color}}" style="width:84px;justify-content:center;font-size:11px">
+          {{emojiColor .Color}} {{.Nombre}}
+        </span>
+        <div class="wr-bar-track" style="flex:1">
+          <div class="wr-bar-fill" style="width:{{redondear .WinRate}}%"></div>
+        </div>
+        <span style="font-size:11px;color:var(--text-faint);width:92px;text-align:right;white-space:nowrap">
+          {{formatPct .WinRate}} · {{if eq .Veces 1}}1 vez{{else}}{{.Veces}} veces{{end}}
+        </span>
+      </div>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
+
+  <!-- Highlights -->
+  <div class="card card-sm">
+    <div class="section-title">Destacados</div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+      {{if .Stats.CombinacionTop}}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0">Favorita</span>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;flex:1">
+          {{range .Stats.CombinacionTop.Colores}}<span class="mana-badge mana-badge-{{.}}" style="font-size:10px;padding:1px 6px">{{emojiColor .}} {{nombreColor .}}</span>{{end}}
+        </div>
+        <span style="font-size:10px;color:var(--text-faint)">×{{.Stats.CombinacionTop.Veces}}</span>
+      </div>
+      {{end}}
+      {{if .Stats.MejorSesion}}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0">Mejor sesión</span>
+        <a href="/sesion/{{.Stats.MejorSesion.SesionID}}" style="color:var(--text);text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{if .Stats.MejorSesion.Descripcion}}{{.Stats.MejorSesion.Descripcion}}{{else}}{{formatFechaCorta .Stats.MejorSesion.Fecha}}{{end}}</a>
+        <span style="font-size:11px;color:var(--text-faint);white-space:nowrap"><strong class="vs-win">{{.Stats.MejorSesion.Victorias}}V</strong>–<strong class="vs-loss">{{.Stats.MejorSesion.Derrotas}}D</strong></span>
+      </div>
+      {{end}}
+      {{if .Stats.Verdugo}}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0" title="Rival contra quien peor win rate tiene">Verdugo</span>
+        <a href="/jugador/{{.Stats.Verdugo.Rival.ID}}" style="color:var(--text);text-decoration:none;display:flex;align-items:center;gap:5px;flex:1"><span style="font-size:14px">{{renderAvatar .Stats.Verdugo.Rival.Avatar}}</span>{{.Stats.Verdugo.Rival.Nombre}}</a>
+        <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{formatPct .Stats.Verdugo.WinRate}}</span>
+      </div>
+      {{end}}
+      {{if .Stats.Victima}}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0" title="Rival contra quien mejor win rate tiene">Víctima</span>
+        <a href="/jugador/{{.Stats.Victima.Rival.ID}}" style="color:var(--text);text-decoration:none;display:flex;align-items:center;gap:5px;flex:1"><span style="font-size:14px">{{renderAvatar .Stats.Victima.Rival.Avatar}}</span>{{.Stats.Victima.Rival.Nombre}}</a>
+        <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{formatPct .Stats.Victima.WinRate}}</span>
+      </div>
+      {{end}}
+      {{if .Stats.RivalTop}}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0">Rival top</span>
+        <a href="/jugador/{{.Stats.RivalTop.Rival.ID}}" style="color:var(--text);text-decoration:none;display:flex;align-items:center;gap:5px;flex:1"><span style="font-size:14px">{{renderAvatar .Stats.RivalTop.Rival.Avatar}}</span>{{.Stats.RivalTop.Rival.Nombre}}</a>
+        <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{.Stats.RivalTop.Partidas}} partidas</span>
+      </div>
+      {{end}}
+      {{if gt .Stats.RachaRecord.Longitud 0}}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0">Récord</span>
+        <span class="racha {{if eq .Stats.RachaRecord.Tipo "W"}}win{{else}}loss{{end}}" style="font-size:11px">{{.Stats.RachaRecord.Longitud}}{{.Stats.RachaRecord.Tipo}} consecutivas</span>
+      </div>
+      {{end}}
+    </div>
+  </div>
+</div>
+
+<!-- Historial de drafts -->
+{{if .Historial}}
+<section>
+  <div class="section-title">Historial de drafts ({{len .Historial}})</div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="ranking-table">
+      <thead>
+        <tr>
+          <th>Sesión</th>
+          <th>Colores</th>
+          <th>Resultado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Historial}}
+        <tr>
+          <td style="text-align:left">
+            <a href="/sesion/{{.SesionID}}" style="color:var(--text);text-decoration:none">
+              {{if .Descripcion}}{{.Descripcion}}{{else}}{{formatFechaCorta .Fecha}}{{end}}
+            </a>
+            <div style="font-size:11px;color:var(--text-faint)">{{formatFechaCorta .Fecha}}</div>
+          </td>
+          <td>
+            <div style="display:flex;gap:3px;flex-wrap:wrap;justify-content:center">
+              {{range .Colores}}<span class="mana-badge mana-badge-{{.}}" style="font-size:10px;padding:1px 5px">{{emojiColor .}}</span>{{end}}
+              {{if not .Colores}}<span style="font-size:11px;color:var(--text-faint)">—</span>{{end}}
+            </div>
+          </td>
+          <td style="white-space:nowrap"><strong class="vs-win">{{.Victorias}}V</strong> – <strong class="vs-loss">{{.Derrotas}}D</strong></td>
+          <td>{{if .Top}}<span class="racha win" title="Fue quien más ganó esa sesión">🏆</span>{{end}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{end}}
+
+{{end}}
+
+</main>
+<script src="/static/js/main.js"></script>
+</body>
+</html>{{end}}

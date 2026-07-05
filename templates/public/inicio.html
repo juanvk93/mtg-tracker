@@ -81,12 +81,14 @@
       <tr>
         <td><span class="rank-num">{{add1 $i}}</span></td>
         <td data-val="{{$fila.Jugador.Nombre}}">
-          <div class="jugador-cell">
-            <div class="avatar" style="background-color:{{$fila.Jugador.Color}}18;border-color:{{$fila.Jugador.Color}}30">
-              {{renderAvatar $fila.Jugador.Avatar}}
+          <a href="/jugador/{{$fila.Jugador.ID}}" class="jugador-link">
+            <div class="jugador-cell">
+              <div class="avatar" style="background-color:{{$fila.Jugador.Color}}18;border-color:{{$fila.Jugador.Color}}30">
+                {{renderAvatar $fila.Jugador.Avatar}}
+              </div>
+              <span class="jugador-nombre">{{$fila.Jugador.Nombre}}</span>
             </div>
-            <span class="jugador-nombre">{{$fila.Jugador.Nombre}}</span>
-          </div>
+          </a>
         </td>
         <td class="col-hide-mobile" data-val="{{$fila.Partidas}}" style="color:var(--text-muted)">{{$fila.Partidas}}</td>
         <td data-val="{{$fila.Victorias}}"><strong class="vs-win">{{$fila.Victorias}}</strong></td>

@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.9.2"
+const Version = "1.9.3"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,14 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.9.3",
+			Fecha:   "2026-07-13",
+			Cambios: []string{
+				"Quitado el icono de televisor del botón 'Modo TV'",
+				"Win rate por color: el récord ahora se muestra con V y D (ej: '58.8% · 10V–7D')",
+			},
+		},
 		{
 			Version: "1.9.2",
 			Fecha:   "2026-07-13",

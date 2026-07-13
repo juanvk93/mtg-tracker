@@ -32,24 +32,32 @@
 </div>
 {{else}}
 
+{{if and .LiderVict .LiderWR}}{{if eq .LiderVict.Jugador.ID .LiderWR.Jugador.ID}}
+<div class="mvp-hero">
+  <div class="mvp-crest">{{renderAvatar .LiderVict.Jugador.Avatar}}</div>
+  <div class="mvp-body">
+    <div class="mvp-tag">◆ MVP de la temporada</div>
+    <div class="mvp-name">{{.LiderVict.Jugador.Nombre}}</div>
+    <div class="mvp-stats">
+      <div><b>{{.LiderVict.Victorias}}</b><span>Victorias</span></div>
+      <div><b>{{formatPct .LiderWR.WinRate}}</b><span>Win rate</span></div>
+      {{if gt .LiderVict.RachaActual 0}}<div><b>{{if eq .LiderVict.RachaTipo "W"}}🔥 {{.LiderVict.RachaActual}}{{else}}{{.LiderVict.RachaActual}}D{{end}}</b><span>Racha</span></div>{{end}}
+    </div>
+  </div>
+</div>
+{{end}}{{end}}
+
 <div class="stats-grid">
-  {{if and .LiderVict .LiderWR}}
-    {{if eq .LiderVict.Jugador.ID .LiderWR.Jugador.ID}}
-    <div class="stat-card kpi-hero">
-      <div class="stat-value" style="font-size:1.15rem">{{renderAvatar .LiderVict.Jugador.Avatar}} {{.LiderVict.Jugador.Nombre}}</div>
-      <div class="stat-label">🏆 MVP · {{.LiderVict.Victorias}} victoria{{if ne .LiderVict.Victorias 1}}s{{end}} · {{formatPct .LiderWR.WinRate}} WR</div>
-    </div>
-    {{else}}
-    <div class="stat-card kpi-hero">
-      <div class="stat-value" style="font-size:1.15rem">{{renderAvatar .LiderVict.Jugador.Avatar}} {{.LiderVict.Jugador.Nombre}}</div>
-      <div class="stat-label">🏆 Líder · {{.LiderVict.Victorias}} victoria{{if ne .LiderVict.Victorias 1}}s{{end}}</div>
-    </div>
-    <div class="stat-card kpi-hero">
-      <div class="stat-value" style="font-size:1.15rem">{{renderAvatar .LiderWR.Jugador.Avatar}} {{.LiderWR.Jugador.Nombre}}</div>
-      <div class="stat-label">📈 Mejor win rate · {{formatPct .LiderWR.WinRate}}</div>
-    </div>
-    {{end}}
-  {{end}}
+  {{if and .LiderVict .LiderWR}}{{if ne .LiderVict.Jugador.ID .LiderWR.Jugador.ID}}
+  <div class="stat-card kpi-hero">
+    <div class="stat-value" style="font-size:1.15rem">{{renderAvatar .LiderVict.Jugador.Avatar}} {{.LiderVict.Jugador.Nombre}}</div>
+    <div class="stat-label">🏆 Líder · {{.LiderVict.Victorias}} victoria{{if ne .LiderVict.Victorias 1}}s{{end}}</div>
+  </div>
+  <div class="stat-card kpi-hero">
+    <div class="stat-value" style="font-size:1.15rem">{{renderAvatar .LiderWR.Jugador.Avatar}} {{.LiderWR.Jugador.Nombre}}</div>
+    <div class="stat-label">📈 Mejor win rate · {{formatPct .LiderWR.WinRate}}</div>
+  </div>
+  {{end}}{{end}}
   <div class="stat-card">
     <div class="stat-value">{{len .Ranking}}</div>
     <div class="stat-label">Jugadores</div>
@@ -92,10 +100,13 @@
         <td data-val="{{$fila.Jugador.Nombre}}">
           <a href="/jugador/{{$fila.Jugador.ID}}" class="jugador-link">
             <div class="jugador-cell">
-              <div class="avatar" style="background-color:{{$fila.Jugador.Color}}18;border-color:{{$fila.Jugador.Color}}30">
+              <div class="avatar" style="background-color:{{$fila.Jugador.Color}}22;border-color:{{$fila.Jugador.Color}}66">
                 {{renderAvatar $fila.Jugador.Avatar}}
               </div>
-              <span class="jugador-nombre">{{$fila.Jugador.Nombre}}</span>
+              <div>
+                <span class="jugador-nombre">{{$fila.Jugador.Nombre}}</span>
+                {{if $fila.Colores}}<div class="manas">{{range $fila.Colores}}<span class="m m-{{.}}"></span>{{end}}</div>{{end}}
+              </div>
             </div>
           </a>
         </td>

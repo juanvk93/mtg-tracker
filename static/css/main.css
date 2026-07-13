@@ -6,25 +6,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg:           #f4f2ee;
+  --bg:           #eef1f5;
   --bg-card:      #ffffff;
-  --bg-surface:   #eeece8;
-  --border:       rgba(0,0,0,0.12);
-  --border-hover: rgba(0,0,0,0.25);
-  --text:         #1a1a1a;
-  --text-muted:   #666;
-  --text-faint:   #999;
-  --accent:       #1a1a1a;
-  /* Acento dorado (Magic) y podio */
-  --brand:        #9a7420;
-  --brand-bg:     rgba(154,116,32,0.10);
+  --bg-surface:   #e3e8ef;
+  --border:       rgba(20,40,70,0.12);
+  --border-hover: rgba(20,40,70,0.26);
+  --text:         #121822;
+  --text-muted:   #55627a;
+  --text-faint:   #8a97ab;
+  --accent:       #121822;
+  /* Acento teal + podio metálico */
+  --brand:        #0f9f90;
+  --brand-bg:     rgba(15,159,144,0.10);
+  --brand-glow:   rgba(15,159,144,0.28);
   --oro:          #b8860b;
   --plata:        #8a8a8a;
   --bronce:       #a9722e;
   --radius:       10px;
   --radius-sm:    6px;
-  --shadow:       0 1px 2px rgba(0,0,0,0.04), 0 6px 18px rgba(0,0,0,0.07);
-  --shadow-hover: 0 2px 4px rgba(0,0,0,0.06), 0 10px 28px rgba(0,0,0,0.10);
+  --shadow:       0 1px 2px rgba(20,30,50,0.05), 0 6px 18px rgba(20,30,50,0.08);
+  --shadow-hover: 0 2px 4px rgba(20,30,50,0.07), 0 10px 28px rgba(20,30,50,0.12);
   --font:         -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
   --font-display: 'Cinzel', Georgia, 'Times New Roman', serif;
 }
@@ -32,41 +33,43 @@
 /* Paleta oscura: automática por sistema (salvo que el usuario fuerce claro) y manual con data-theme="dark" */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:           #161514;
-    --bg-card:      #211f1d;
-    --bg-surface:   #2b2926;
-    --border:       rgba(255,255,255,0.09);
-    --border-hover: rgba(255,255,255,0.24);
-    --text:         #f2efe9;
-    --text-muted:   #a0988c;
-    --text-faint:   #6b655d;
-    --accent:       #f0ede8;
-    --brand:        #e0bd5e;
-    --brand-bg:     rgba(224,189,94,0.13);
+    --bg:           #0c0e12;
+    --bg-card:      #14171d;
+    --bg-surface:   #1c2029;
+    --border:       rgba(150,170,200,0.12);
+    --border-hover: rgba(150,170,200,0.28);
+    --text:         #eaf0f7;
+    --text-muted:   #93a0b3;
+    --text-faint:   #5d6a7d;
+    --accent:       #eaf0f7;
+    --brand:        #3ad0c0;
+    --brand-bg:     rgba(58,208,192,0.14);
+    --brand-glow:   rgba(58,208,192,0.30);
     --oro:          #e8c25a;
     --plata:        #c2c2c2;
     --bronce:       #cf9257;
-    --shadow:       0 1px 2px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.45);
-    --shadow-hover: 0 2px 6px rgba(0,0,0,0.4), 0 14px 34px rgba(0,0,0,0.55);
+    --shadow:       0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.5);
+    --shadow-hover: 0 2px 6px rgba(0,0,0,0.45), 0 14px 34px rgba(0,0,0,0.6);
   }
 }
 :root[data-theme="dark"] {
-  --bg:           #161514;
-  --bg-card:      #211f1d;
-  --bg-surface:   #2b2926;
-  --border:       rgba(255,255,255,0.09);
-  --border-hover: rgba(255,255,255,0.24);
-  --text:         #f2efe9;
-  --text-muted:   #a0988c;
-  --text-faint:   #6b655d;
-  --accent:       #f0ede8;
-  --brand:        #e0bd5e;
-  --brand-bg:     rgba(224,189,94,0.13);
+  --bg:           #0c0e12;
+  --bg-card:      #14171d;
+  --bg-surface:   #1c2029;
+  --border:       rgba(150,170,200,0.12);
+  --border-hover: rgba(150,170,200,0.28);
+  --text:         #eaf0f7;
+  --text-muted:   #93a0b3;
+  --text-faint:   #5d6a7d;
+  --accent:       #eaf0f7;
+  --brand:        #3ad0c0;
+  --brand-bg:     rgba(58,208,192,0.14);
+  --brand-glow:   rgba(58,208,192,0.30);
   --oro:          #e8c25a;
   --plata:        #c2c2c2;
   --bronce:       #cf9257;
-  --shadow:       0 1px 2px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.45);
-  --shadow-hover: 0 2px 6px rgba(0,0,0,0.4), 0 14px 34px rgba(0,0,0,0.55);
+  --shadow:       0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-hover: 0 2px 6px rgba(0,0,0,0.45), 0 14px 34px rgba(0,0,0,0.6);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -269,8 +272,45 @@ body {
 .ranking-table tr:hover td { background: var(--bg-surface); }
 
 /* Podio: fila del líder con acento dorado */
-.ranking-table tr.fila-lider td { background: var(--brand-bg); }
-.ranking-table tr.fila-lider td:first-child { box-shadow: inset 3px 0 0 var(--oro); }
+.ranking-table tr.fila-lider td { background: linear-gradient(90deg, var(--brand-bg), transparent 75%); }
+.ranking-table tr.fila-lider td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+
+/* Puntos de maná bajo el nombre */
+.ranking-table .manas { display: flex; gap: 3px; margin-top: 4px; }
+.ranking-table .m {
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 0.5px solid rgba(0,0,0,.35);
+  box-shadow: inset 0 0 0 0.5px rgba(255,255,255,.18);
+}
+.m-W { background: #efe4c6; } .m-U { background: #4b95cf; }
+.m-B { background: #6f6878; } .m-R { background: #e0604c; } .m-G { background: #57b06f; }
+
+/* === TARJETA-HÉROE DEL MVP === */
+.mvp-hero {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 20px; margin-bottom: 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand) 45%, var(--border));
+  background:
+    radial-gradient(130% 150% at 100% 0, var(--brand-bg), transparent 55%),
+    var(--bg-card);
+  box-shadow: var(--shadow), 0 0 44px -14px var(--brand-glow);
+}
+.mvp-crest {
+  width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 1.7rem;
+  background: var(--bg-surface);
+  border: 2px solid var(--brand);
+  box-shadow: 0 0 0 4px var(--brand-bg), 0 0 22px -4px var(--brand-glow);
+}
+.mvp-crest i { color: var(--brand); }
+.mvp-body { min-width: 0; }
+.mvp-tag { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--brand); font-weight: 700; }
+.mvp-name { font-family: var(--font-display); font-size: 24px; font-weight: 700; margin: 2px 0 9px; line-height: 1.1; }
+.mvp-stats { display: flex; gap: 22px; }
+.mvp-stats > div { display: flex; flex-direction: column; gap: 1px; }
+.mvp-stats b { font-family: var(--font-display); font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mvp-stats span { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-faint); }
 
 .rank-num {
   font-family: var(--font-display);

@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.7.0"
+const Version = "1.8.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,16 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.8.0",
+			Fecha:   "2026-07-13",
+			Cambios: []string{
+				"Nueva paleta fría (azul-noche) con acento turquesa y difuminados suaves",
+				"Tarjeta-héroe del MVP en el ranking, con brillo turquesa y estadísticas destacadas",
+				"En la tabla de clasificación, puntos con los colores de maná que juega cada jugador",
+				"Fila del líder resaltada en turquesa y podio en oro/plata/bronce",
+			},
+		},
 		{
 			Version: "1.7.0",
 			Fecha:   "2026-07-13",

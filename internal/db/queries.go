@@ -601,6 +601,31 @@ func ObtenerRanking(db *sql.DB, temporadaID int) ([]models.FilaRanking, error) {
 		return ranking[i].WinRate > ranking[k].WinRate
 	})
 
+	// Colores distintos jugados por cada jugador (para los puntos de maná de la tabla)
+	if colRows, err := db.Query(`
+		SELECT r.jugador_id, cj.color
+		FROM colores_jugados cj
+		JOIN resultados r ON r.id = cj.resultado_id
+		JOIN sesiones s ON s.id = r.sesion_id
+		WHERE s.temporada_id = $1
+		GROUP BY r.jugador_id, cj.color`, temporadaID); err == nil {
+		coloresJug := map[int][]string{}
+		for colRows.Next() {
+			var jid int
+			var c string
+			if err := colRows.Scan(&jid, &c); err == nil {
+				coloresJug[jid] = append(coloresJug[jid], c)
+			}
+		}
+		colRows.Close()
+		ordenC := map[string]int{"W": 0, "U": 1, "B": 2, "R": 3, "G": 4}
+		for i := range ranking {
+			cs := coloresJug[ranking[i].Jugador.ID]
+			sort.Slice(cs, func(a, b int) bool { return ordenC[cs[a]] < ordenC[cs[b]] })
+			ranking[i].Colores = cs
+		}
+	}
+
 	return ranking, nil
 }
 

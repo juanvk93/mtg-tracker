@@ -49,9 +49,10 @@ type FilaRanking struct {
 	Victorias   int
 	Derrotas    int
 	WinRate     float64
-	RachaActual int    // longitud de la racha actual (siempre >= 0)
-	RachaTipo   string // "W" o "L"
-	MejorRacha  int    // racha de victorias más larga de la temporada
+	RachaActual int      // longitud de la racha actual (siempre >= 0)
+	RachaTipo   string   // "W" o "L"
+	MejorRacha  int      // racha de victorias más larga de la temporada
+	Colores     []string // colores distintos jugados en la temporada (orden WUBRG)
 }
 
 // EstadisticaColor contiene estadísticas por color para un jugador

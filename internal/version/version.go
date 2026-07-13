@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.8.0"
+const Version = "1.8.1"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,14 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.8.1",
+			Fecha:   "2026-07-13",
+			Cambios: []string{
+				"Corrección: en móvil la barra de navegación vuelve a mostrarse abajo (el desenfoque del nav la enviaba arriba)",
+				"En la tabla de clasificación ahora se muestra solo el color más jugado de cada jugador, no todos",
+			},
+		},
 		{
 			Version: "1.8.0",
 			Fecha:   "2026-07-13",

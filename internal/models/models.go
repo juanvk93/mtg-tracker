@@ -44,15 +44,15 @@ type ResultadoSesion struct {
 
 // FilaRanking es una fila del ranking calculado
 type FilaRanking struct {
-	Jugador     Jugador
-	Partidas    int
-	Victorias   int
-	Derrotas    int
-	WinRate     float64
-	RachaActual int      // longitud de la racha actual (siempre >= 0)
-	RachaTipo   string   // "W" o "L"
-	MejorRacha  int      // racha de victorias más larga de la temporada
-	Colores     []string // colores distintos jugados en la temporada (orden WUBRG)
+	Jugador        Jugador
+	Partidas       int
+	Victorias      int
+	Derrotas       int
+	WinRate        float64
+	RachaActual    int    // longitud de la racha actual (siempre >= 0)
+	RachaTipo      string // "W" o "L"
+	MejorRacha     int    // racha de victorias más larga de la temporada
+	ColorPrincipal string // color de maná más jugado en la temporada ("" si ninguno)
 }
 
 // EstadisticaColor contiene estadísticas por color para un jugador

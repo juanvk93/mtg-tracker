@@ -105,7 +105,7 @@
               </div>
               <div>
                 <span class="jugador-nombre">{{$fila.Jugador.Nombre}}</span>
-                {{if $fila.Colores}}<div class="manas">{{range $fila.Colores}}<span class="m m-{{.}}"></span>{{end}}</div>{{end}}
+                {{if $fila.ColorPrincipal}}<div class="color-top" title="Color más jugado: {{nombreColor $fila.ColorPrincipal}}">{{emojiColor $fila.ColorPrincipal}}</div>{{end}}
               </div>
             </div>
           </a>

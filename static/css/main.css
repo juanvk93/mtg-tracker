@@ -275,15 +275,8 @@ body {
 .ranking-table tr.fila-lider td { background: linear-gradient(90deg, var(--brand-bg), transparent 75%); }
 .ranking-table tr.fila-lider td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
 
-/* Puntos de maná bajo el nombre */
-.ranking-table .manas { display: flex; gap: 3px; margin-top: 4px; }
-.ranking-table .m {
-  width: 9px; height: 9px; border-radius: 50%;
-  border: 0.5px solid rgba(0,0,0,.35);
-  box-shadow: inset 0 0 0 0.5px rgba(255,255,255,.18);
-}
-.m-W { background: #efe4c6; } .m-U { background: #4b95cf; }
-.m-B { background: #6f6878; } .m-R { background: #e0604c; } .m-G { background: #57b06f; }
+/* Color más jugado bajo el nombre (símbolo de maná) */
+.ranking-table .color-top { font-size: 13px; line-height: 1; margin-top: 4px; }
 
 /* === TARJETA-HÉROE DEL MVP === */
 .mvp-hero {
@@ -861,6 +854,9 @@ textarea.form-input { height: auto; min-height: 80px; resize: vertical; line-hei
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
   .main { padding: 1.25rem 1rem 5rem; } /* espacio extra abajo para la barra móvil */
+  /* Sin backdrop-filter en móvil: crea un bloque contenedor y rompería el position:fixed
+     de la barra inferior (.nav-links), que aparecería arriba en vez de abajo. */
+  .nav { background: var(--bg-card); backdrop-filter: none; -webkit-backdrop-filter: none; }
   .nav-inner { padding: 0 1rem; gap: 0.75rem; }
   .admin-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }

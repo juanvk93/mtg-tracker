@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.8.2"
+const Version = "1.8.3"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,14 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.8.3",
+			Fecha:   "2026-07-13",
+			Cambios: []string{
+				"Win rate por color: ahora muestra el récord V–D y solo el icono del color",
+				"Quitado 'Rival top' de las estadísticas por jugador (poco útil con un grupo fijo)",
+			},
+		},
 		{
 			Version: "1.8.2",
 			Fecha:   "2026-07-13",

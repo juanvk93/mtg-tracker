@@ -127,13 +127,6 @@
         <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{formatPct .Stats.Victima.WinRate}}</span>
       </div>
       {{end}}
-      {{if .Stats.RivalTop}}
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0">Rival top</span>
-        <a href="/jugador/{{.Stats.RivalTop.Rival.ID}}" style="color:var(--text);text-decoration:none;display:flex;align-items:center;gap:5px;flex:1"><span style="font-size:14px">{{renderAvatar .Stats.RivalTop.Rival.Avatar}}</span>{{.Stats.RivalTop.Rival.Nombre}}</a>
-        <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{.Stats.RivalTop.Partidas}} partidas</span>
-      </div>
-      {{end}}
       {{if gt .Stats.RachaRecord.Longitud 0}}
       <div style="display:flex;align-items:center;gap:8px">
         <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0">Récord</span>

@@ -864,9 +864,6 @@ func ObtenerEstadisticasCompletasJugador(db *sql.DB, jugador models.Jugador, tem
 	if m, err := ObtenerMejorSesionJugador(db, jugador.ID, temporadaID); err == nil {
 		stats.MejorSesion = m
 	}
-	if r, err := ObtenerRivalMasFrecuente(db, jugador.ID, temporadaID); err == nil {
-		stats.RivalTop = r
-	}
 	if v, vc, err := ObtenerVerdugoYVictima(db, jugador.ID, temporadaID); err == nil {
 		stats.Verdugo = v
 		stats.Victima = vc

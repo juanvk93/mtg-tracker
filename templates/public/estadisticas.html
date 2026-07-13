@@ -372,15 +372,6 @@
         </div>
         {{end}}
 
-        {{if .RivalTop}}
-        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
-          <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0">Rival top</span>
-          <span style="display:flex;align-items:center;gap:5px;flex:1">
-            <span style="font-size:14px">{{renderAvatar .RivalTop.Rival.Avatar}}</span>{{.RivalTop.Rival.Nombre}}
-          </span>
-          <span style="font-size:11px;color:var(--text-faint);white-space:nowrap">{{.RivalTop.Partidas}} partidas</span>
-        </div>
-        {{end}}
 
         {{if gt .RachaRecord.Longitud 0}}
         <div style="display:flex;align-items:center;gap:8px;font-size:12px">
@@ -425,14 +416,12 @@
       <div style="display:flex;flex-direction:column;gap:5px">
         {{range .Colores}}
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="mana-badge mana-badge-{{.Color}}" style="width:80px;justify-content:center;font-size:11px">
-            {{emojiColor .Color}} {{.Nombre}}
-          </span>
+          <span style="width:22px;text-align:center;font-size:14px;flex-shrink:0" title="{{.Nombre}}">{{emojiColor .Color}}</span>
           <div class="wr-bar-track" style="flex:1">
             <div class="wr-bar-fill" style="width:{{redondear .WinRate}}%"></div>
           </div>
-          <span style="font-size:11px;color:var(--text-faint);width:60px;text-align:right;white-space:nowrap">
-            {{formatPct .WinRate}} ({{.Partidas}})
+          <span style="font-size:11px;color:var(--text-faint);width:82px;text-align:right;white-space:nowrap">
+            {{formatPct .WinRate}} · {{.Victorias}}–{{resta .Partidas .Victorias}}
           </span>
         </div>
         {{end}}

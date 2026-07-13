@@ -73,10 +73,147 @@ func ObtenerCombinacionTopJugador(db *sql.DB, jugadorID, temporadaID int) (*mode
 		}
 	}
 
+	// Si ninguna combinación se repite (todas ×1), la "favorita" sería arbitraria.
+	// En ese caso mostramos el color más jugado, que es más informativo.
+	if topCount <= 1 {
+		orden := map[string]int{"W": 0, "U": 1, "B": 2, "R": 3, "G": 4}
+		conteo := map[string]int{}
+		for _, cs := range coloresPorResultado {
+			for _, c := range cs {
+				conteo[c]++
+			}
+		}
+		if len(conteo) == 0 {
+			return nil, nil
+		}
+		topColor, topN := "", 0
+		for c, n := range conteo {
+			if n > topN || (n == topN && orden[c] < orden[topColor]) {
+				topColor, topN = c, n
+			}
+		}
+		return &models.CombinacionColor{Colores: []string{topColor}, Veces: topN}, nil
+	}
+
 	return &models.CombinacionColor{
 		Colores: strings.Split(topClave, ","),
 		Veces:   topCount,
 	}, nil
+}
+
+// ObtenerDesempenoJugador calcula, para un jugador en una temporada:
+//   - ganados: nº de sesiones en las que fue quien más victorias logró (empates incl.)
+//   - posMedia: puesto medio en las sesiones jugadas (1 = mejor)
+//   - tendencia: "up"/"down"/"flat" según el win rate reciente vs el anterior
+func ObtenerDesempenoJugador(db *sql.DB, jugadorID, temporadaID int) (ganados int, posMedia float64, tendencia string, err error) {
+	tendencia = "flat"
+
+	// Victorias de TODOS los participantes en las sesiones donde jugó este jugador.
+	rows, err := db.Query(`
+		SELECT r.sesion_id, r.jugador_id,
+			(SELECT COUNT(*) FROM victorias v WHERE v.resultado_id = r.id) AS vict
+		FROM resultados r
+		JOIN sesiones s ON s.id = r.sesion_id
+		WHERE s.temporada_id = $1
+		  AND r.sesion_id IN (SELECT sesion_id FROM resultados WHERE jugador_id = $2)`,
+		temporadaID, jugadorID)
+	if err != nil {
+		return 0, 0, "flat", err
+	}
+	victPorSesion := map[int]map[int]int{} // sesión -> jugador -> victorias
+	for rows.Next() {
+		var sid, jid, v int
+		if err := rows.Scan(&sid, &jid, &v); err != nil {
+			rows.Close()
+			return 0, 0, "flat", err
+		}
+		if victPorSesion[sid] == nil {
+			victPorSesion[sid] = map[int]int{}
+		}
+		victPorSesion[sid][jid] = v
+	}
+	rows.Close()
+
+	nSes, sumaPos := 0, 0
+	for _, jugs := range victPorSesion {
+		mine, ok := jugs[jugadorID]
+		if !ok {
+			continue
+		}
+		nSes++
+		maxV, pos := 0, 1
+		for _, v := range jugs {
+			if v > maxV {
+				maxV = v
+			}
+			if v > mine {
+				pos++
+			}
+		}
+		sumaPos += pos
+		if mine == maxV && maxV > 0 {
+			ganados++
+		}
+	}
+	if nSes > 0 {
+		posMedia = float64(sumaPos) / float64(nSes)
+	}
+
+	// Win rate por sesión en orden cronológico → tendencia.
+	wrRows, err := db.Query(`
+		SELECT
+			(SELECT COUNT(*) FROM victorias v JOIN resultados r2 ON r2.id = v.resultado_id
+				WHERE r2.jugador_id = $1 AND r2.sesion_id = s.id) AS vict,
+			(SELECT COUNT(*) FROM victorias v JOIN resultados r2 ON r2.id = v.resultado_id
+				WHERE v.rival_id = $1 AND r2.sesion_id = s.id) AS derr
+		FROM sesiones s
+		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $1
+		WHERE s.temporada_id = $2
+		ORDER BY s.fecha ASC`, jugadorID, temporadaID)
+	if err != nil {
+		return ganados, posMedia, "flat", nil
+	}
+	var wr []float64
+	for wrRows.Next() {
+		var v, d int
+		if err := wrRows.Scan(&v, &d); err != nil {
+			break
+		}
+		if v+d > 0 {
+			wr = append(wr, float64(v)/float64(v+d)*100)
+		}
+	}
+	wrRows.Close()
+	return ganados, posMedia, calcularTendencia(wr), nil
+}
+
+// calcularTendencia compara la media del win rate de la mitad reciente con la mitad
+// antigua de las sesiones. Devuelve "up"/"down"/"flat" (umbral de 5 puntos).
+func calcularTendencia(wr []float64) string {
+	n := len(wr)
+	if n < 2 {
+		return "flat"
+	}
+	media := func(s []float64) float64 {
+		if len(s) == 0 {
+			return 0
+		}
+		t := 0.0
+		for _, x := range s {
+			t += x
+		}
+		return t / float64(len(s))
+	}
+	mitad := n / 2
+	delta := media(wr[mitad:]) - media(wr[:mitad])
+	switch {
+	case delta > 5:
+		return "up"
+	case delta < -5:
+		return "down"
+	default:
+		return "flat"
+	}
 }
 
 // ObtenerMejorSesionJugador devuelve la sesión con más victorias de un jugador.
@@ -388,8 +525,8 @@ func ObtenerVerdugoYVictima(db *sql.DB, jugadorID, temporadaID int) (*models.Riv
 		rf.WinRate = float64(rf.Victorias) / float64(rf.Partidas) * 100
 
 		rival, ok := mapaJugadores[rid]
-		if !ok {
-			continue
+		if !ok || !rival.Activo {
+			continue // los jugadores inactivos no aparecen como verdugo/víctima
 		}
 		rf.Rival = rival
 
@@ -895,6 +1032,13 @@ func ObtenerEstadisticasCompletasJugador(db *sql.DB, jugador models.Jugador, tem
 	// Desviación típica del win rate por sesión
 	if wrs, err := ObtenerWinRatesPorSesion(db, jugador.ID, temporadaID); err == nil {
 		stats.DesviacionWinRate = CalcularDesviacionWinRate(wrs)
+	}
+
+	// Drafts ganados, posición media y tendencia
+	if g, pm, t, err := ObtenerDesempenoJugador(db, jugador.ID, temporadaID); err == nil {
+		stats.DraftsGanados = g
+		stats.PosicionMedia = pm
+		stats.Tendencia = t
 	}
 
 	return stats, nil

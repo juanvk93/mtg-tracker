@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.8.3"
+const Version = "1.9.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,16 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.9.0",
+			Fecha:   "2026-07-13",
+			Cambios: []string{
+				"Estadísticas por jugador: nuevos datos de 'Drafts ganados', 'Posición media' y 'Tendencia' (↗/→/↘ según el win rate reciente)",
+				"Los jugadores desactivados dejan de aparecer en Estadísticas (gráficas, fichas, matriz, premios y comparativas), pero se mantienen en el ranking y el histórico",
+				"'Favorita': si no hay una combinación repetida, muestra el color más jugado en solitario",
+				"Solo se muestra el icono del color (sin la palabra Blanco/Azul/…); el nombre queda como descripción al pasar el ratón",
+			},
+		},
 		{
 			Version: "1.8.3",
 			Fecha:   "2026-07-13",

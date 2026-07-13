@@ -143,6 +143,9 @@ type EstadisticasJugador struct {
 	SesionesJugadas    int
 	DesviacionWinRate  float64 // 0 = muy constante, valores altos = irregular
 	DistribucionDrafts DistribucionDrafts
+	DraftsGanados      int     // nº de sesiones que ganó (más victorias, empates incluidos)
+	PosicionMedia      float64 // posición media en las sesiones jugadas (1 = mejor)
+	Tendencia          string  // "up" | "down" | "flat" según el win rate reciente
 }
 
 // DistribucionColor cuenta cuántas veces se ha jugado cada color en el grupo

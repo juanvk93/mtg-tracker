@@ -78,9 +78,7 @@
     <div style="display:flex;flex-direction:column;gap:6px">
       {{range .Stats.Colores}}
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="mana-badge mana-badge-{{.Color}}" style="width:84px;justify-content:center;font-size:11px">
-          {{emojiColor .Color}} {{.Nombre}}
-        </span>
+        <span class="mana-badge mana-badge-{{.Color}}" style="width:34px;justify-content:center;font-size:13px" title="{{.Nombre}}">{{emojiColor .Color}}</span>
         <div class="wr-bar-track" style="flex:1">
           <div class="wr-bar-fill" style="width:{{redondear .WinRate}}%"></div>
         </div>
@@ -101,7 +99,7 @@
       <div style="display:flex;align-items:center;gap:8px">
         <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:82px;flex-shrink:0">Favorita</span>
         <div style="display:flex;gap:3px;flex-wrap:wrap;flex:1">
-          {{range .Stats.CombinacionTop.Colores}}<span class="mana-badge mana-badge-{{.}}" style="font-size:10px;padding:1px 6px">{{emojiColor .}} {{nombreColor .}}</span>{{end}}
+          {{range .Stats.CombinacionTop.Colores}}<span class="mana-badge mana-badge-{{.}}" style="font-size:12px;padding:1px 6px" title="{{nombreColor .}}">{{emojiColor .}}</span>{{end}}
         </div>
         <span style="font-size:10px;color:var(--text-faint)">×{{.Stats.CombinacionTop.Veces}}</span>
       </div>

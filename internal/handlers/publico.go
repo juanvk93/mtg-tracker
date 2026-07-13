@@ -152,14 +152,24 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Cargar estadísticas completas para cada jugador que haya jugado al menos una sesión
+	// Los jugadores INACTIVOS se ocultan de las estadísticas (siguen en el ranking).
+	activos := map[int]bool{}
+	for _, j := range jugadores {
+		if j.Activo {
+			activos[j.ID] = true
+		}
+	}
+
+	// Cargar estadísticas completas de cada jugador ACTIVO con al menos una sesión
 	var jugadoresStats []models.EstadisticasJugador
 	for _, j := range jugadores {
+		if !j.Activo {
+			continue
+		}
 		stats, err := db.ObtenerEstadisticasCompletasJugador(a.DB, j, temporada.ID)
 		if err != nil {
 			continue
 		}
-		// Incluir jugador si ha participado en al menos una sesión
 		if stats.SesionesJugadas > 0 {
 			jugadoresStats = append(jugadoresStats, stats)
 		}
@@ -168,23 +178,43 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 	// Distribución de colores del grupo
 	distColores, _ := db.ObtenerDistribucionColoresGrupo(a.DB, temporada.ID)
 
-	// Gráficas de evolución (victorias acumuladas y win rate) — comparten la misma consulta
+	// Gráficas de evolución (victorias acumuladas y win rate), solo jugadores activos
 	evolucion, _ := db.ObtenerEvolucionVictorias(a.DB, temporada.ID)
-	graficaEvolucion := construirGraficaEvolucion(evolucion)
-	graficaWinRate := construirGraficaWinRate(evolucion)
+	var evolucionActivos []db.EvolucionFila
+	for _, f := range evolucion {
+		if activos[f.JugadorID] {
+			evolucionActivos = append(evolucionActivos, f)
+		}
+	}
+	graficaEvolucion := construirGraficaEvolucion(evolucionActivos)
+	graficaWinRate := construirGraficaWinRate(evolucionActivos)
 
 	// Meta de colores del grupo (veces jugado + win rate por color)
 	coloresMeta, _ := db.ObtenerColoresTemporada(a.DB, temporada.ID)
 
-	// Premios de temporada, derivados del ranking
+	// Premios de temporada, derivados del ranking (solo jugadores activos)
 	ranking, _ := db.ObtenerRanking(a.DB, temporada.ID)
-	premios := construirPremios(ranking)
+	var rankingActivos []models.FilaRanking
+	for _, f := range ranking {
+		if activos[f.Jugador.ID] {
+			rankingActivos = append(rankingActivos, f)
+		}
+	}
+	premios := construirPremios(rankingActivos)
 
 	// Matriz head-to-head (todos contra todos) sobre los jugadores que han jugado
 	matrizWins, _ := db.ObtenerMatrizH2H(a.DB, temporada.ID)
 	var matrizJugadores []models.Jugador
 	for _, js := range jugadoresStats {
 		matrizJugadores = append(matrizJugadores, js.Jugador)
+	}
+
+	// Lista de activos para los selectores de head-to-head (los inactivos no se listan)
+	var jugadoresActivos []models.Jugador
+	for _, j := range jugadores {
+		if j.Activo {
+			jugadoresActivos = append(jugadoresActivos, j)
+		}
 	}
 
 	// Head-to-head extendido si se especifican los jugadores
@@ -206,7 +236,7 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 	a.renderizar(w, "estadisticas.html", map[string]interface{}{
 		"Temporada":        temporada,
 		"Temporadas":       temporadas,
-		"Jugadores":        jugadores,
+		"Jugadores":        jugadoresActivos,
 		"JugadoresStats":   jugadoresStats,
 		"DistColores":      distColores,
 		"ColoresMeta":      coloresMeta,

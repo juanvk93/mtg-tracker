@@ -49,7 +49,7 @@
     {{if .Colores}}
     <div style="display:flex;gap:4px;margin-left:6px">
       {{range .Colores}}
-      <span class="mana-badge mana-badge-{{.}}">{{emojiColor .}} {{nombreColor .}}</span>
+      <span class="mana-badge mana-badge-{{.}}" title="{{nombreColor .}}">{{emojiColor .}}</span>
       {{end}}
     </div>
     {{end}}

@@ -116,9 +116,7 @@
     <div style="display:flex;flex-direction:column;gap:8px">
       {{range .ColoresMeta}}
       <div style="display:flex;align-items:center;gap:10px">
-        <span class="mana-badge mana-badge-{{.Color}}" style="width:90px;justify-content:center;font-size:11px">
-          {{emojiColor .Color}} {{.Nombre}}
-        </span>
+        <span class="mana-badge mana-badge-{{.Color}}" style="width:38px;justify-content:center;font-size:13px" title="{{.Nombre}}">{{emojiColor .Color}}</span>
         <div class="wr-bar-track" style="flex:1">
           <div class="wr-bar-fill" style="width:{{redondear .WinRate}}%"></div>
         </div>
@@ -140,9 +138,7 @@
     <div style="display:flex;flex-direction:column;gap:8px">
       {{range .DistColores}}
       <div style="display:flex;align-items:center;gap:10px">
-        <span class="mana-badge mana-badge-{{.Color}}" style="width:90px;justify-content:center;font-size:11px">
-          {{emojiColor .Color}} {{.Nombre}}
-        </span>
+        <span class="mana-badge mana-badge-{{.Color}}" style="width:38px;justify-content:center;font-size:13px" title="{{.Nombre}}">{{emojiColor .Color}}</span>
         <div class="wr-bar-track" style="flex:1">
           <div class="wr-bar-fill" style="width:{{redondear .Porcentaje}}%"></div>
         </div>
@@ -325,17 +321,34 @@
           </strong>
           <span style="font-size:10px;color:var(--text-faint);margin-left:4px">σ={{printf "%.0f" .DesviacionWinRate}}</span>
         </div>
+        <div style="background:var(--bg-surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px">
+          <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Drafts ganados</div>
+          <strong style="font-size:14px">{{.DraftsGanados}}</strong><span style="font-size:11px;color:var(--text-faint)"> / {{.SesionesJugadas}}</span>
+        </div>
+        <div style="background:var(--bg-surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px">
+          <div style="font-size:10px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px">Posición media</div>
+          <strong style="font-size:14px">{{printf "%.1f" .PosicionMedia}}º</strong>
+        </div>
       </div>
 
       <!-- Highlights -->
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
+          <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0">Tendencia</span>
+          <span style="flex:1">
+            {{if eq .Tendencia "up"}}<span style="color:#5aba7a;font-weight:600">↗ Subiendo</span>
+            {{else if eq .Tendencia "down"}}<span style="color:#e0785a;font-weight:600">↘ Bajando</span>
+            {{else}}<span style="color:var(--text-faint)">→ Estable</span>{{end}}
+          </span>
+        </div>
 
         {{if .CombinacionTop}}
         <div style="display:flex;align-items:center;gap:8px;font-size:12px">
           <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0">Favorita</span>
           <div style="display:flex;gap:3px;flex-wrap:wrap;flex:1">
             {{range .CombinacionTop.Colores}}
-            <span class="mana-badge mana-badge-{{.}}" style="font-size:10px;padding:1px 6px">{{emojiColor .}} {{nombreColor .}}</span>
+            <span class="mana-badge mana-badge-{{.}}" style="font-size:12px;padding:1px 6px" title="{{nombreColor .}}">{{emojiColor .}}</span>
             {{end}}
           </div>
           <span style="font-size:10px;color:var(--text-faint)">×{{.CombinacionTop.Veces}}</span>

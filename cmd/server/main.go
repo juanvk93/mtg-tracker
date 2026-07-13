@@ -164,6 +164,10 @@ func cargarTemplates() *template.Template {
 		"add1": func(i int) int {
 			return i + 1
 		},
+		// Resta de dos enteros (para el balance neto de la matriz de dominancia)
+		"resta": func(a, b int) int {
+			return a - b
+		},
 		// Calcular un porcentaje a partir de dos enteros (parte/total*100)
 		"mulPct": func(parte, total int) float64 {
 			if total == 0 {

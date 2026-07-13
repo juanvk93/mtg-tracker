@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.8.1"
+const Version = "1.8.2"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,13 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.8.2",
+			Fecha:   "2026-07-13",
+			Cambios: []string{
+				"La matriz de dominancia muestra el balance neto (victorias − derrotas): +N si domina, −N si le dominan (detalle al pasar el ratón)",
+			},
+		},
 		{
 			Version: "1.8.1",
 			Fecha:   "2026-07-13",

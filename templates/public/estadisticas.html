@@ -181,7 +181,8 @@
               {{else}}
               {{$gana := index (index $.MatrizWins $row.ID) $col.ID}}
               {{$recibe := index (index $.MatrizWins $col.ID) $row.ID}}
-              <td class="h2h-cell {{if gt $gana $recibe}}h2h-dom{{else if lt $gana $recibe}}h2h-sub{{end}}" title="{{$row.Nombre}} venció {{$gana}} a {{$col.Nombre}}">{{$gana}}</td>
+              {{$neto := resta $gana $recibe}}
+              <td class="h2h-cell {{if gt $neto 0}}h2h-dom{{else if lt $neto 0}}h2h-sub{{end}}" title="{{$row.Nombre}} {{$gana}}–{{$recibe}} {{$col.Nombre}}">{{if gt $neto 0}}+{{$neto}}{{else if lt $neto 0}}{{$neto}}{{else}}0{{end}}</td>
               {{end}}
             {{end}}
           </tr>
@@ -189,7 +190,7 @@
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-faint" style="padding:8px 12px 12px;margin:0">Cada celda = victorias de la fila sobre la columna. <span style="color:#2d7a47">Verde</span> = domina; <span style="color:#a0391a">rojo</span> = le dominan.</p>
+    <p class="text-xs text-faint" style="padding:8px 12px 12px;margin:0">Cada celda = balance neto (victorias − derrotas) de la fila contra la columna. <span style="color:#2d7a47">Verde +</span> = domina; <span style="color:#a0391a">rojo −</span> = le dominan. Pasa el ratón para ver el detalle.</p>
   </div>
 </section>
 {{end}}

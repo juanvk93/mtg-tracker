@@ -966,26 +966,21 @@ hr.divider {
 
 /* === TOGGLE DE TEMA === */
 .tema-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: 0.5px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-faint);
   cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-  padding: 5px 9px;
-  transition: color 0.1s, border-color 0.1s, background 0.1s;
+  padding: 6px;
+  transition: color 0.1s, border-color 0.1s, background 0.1s, transform 0.1s;
 }
-.tema-toggle:hover { border-color: var(--border-hover); background: var(--bg-surface); }
-/* Icono según tema: luna en claro (para ir a oscuro), sol en oscuro */
-.tema-toggle .t-sol { display: none; }
-.tema-toggle .t-luna { display: inline; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .tema-toggle .t-sol { display: inline; }
-  :root:not([data-theme="light"]) .tema-toggle .t-luna { display: none; }
-}
-:root[data-theme="dark"] .tema-toggle .t-sol { display: inline; }
-:root[data-theme="dark"] .tema-toggle .t-luna { display: none; }
+.tema-toggle:hover { color: var(--text); border-color: var(--border-hover); background: var(--bg-surface); }
+.tema-toggle:active { transform: scale(0.92); }
+.tema-toggle svg { display: block; transition: transform 0.2s; }
+.tema-toggle:hover svg { transform: rotate(-25deg); }
 
 /* === PREMIOS DE TEMPORADA === */
 .premios-grid {

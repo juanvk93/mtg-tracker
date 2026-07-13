@@ -97,13 +97,14 @@ type RivalConWinRate struct {
 	WinRate   float64 // % de victorias del jugador sobre este rival
 }
 
-// DistribucionDrafts contiene el conteo de drafts mono/bi/tri-color de un jugador
+// DistribucionDrafts contiene el conteo de drafts por nº de colores jugados
 type DistribucionDrafts struct {
-	Mono     int // drafts de 1 color
-	Bicolor  int // drafts de 2 colores
-	Tricolor int // drafts de 3 colores
-	MasColor int // drafts de 4 o 5 colores
-	Total    int
+	Mono        int // drafts de 1 color
+	Bicolor     int // drafts de 2 colores
+	Tricolor    int // drafts de 3 colores
+	Cuatricolor int // drafts de 4 colores
+	Pentacolor  int // drafts de 5 colores
+	Total       int
 }
 
 // H2HExtendido contiene el detalle de los enfrentamientos directos entre dos jugadores

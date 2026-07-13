@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.9.0"
+const Version = "1.9.1"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,15 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.9.1",
+			Fecha:   "2026-07-13",
+			Cambios: []string{
+				"Tipos de draft: los de 4 y 5 colores se separan en 'Cuatri' y 'Penta' (antes se agrupaban como '4+')",
+				"Cada tipo de draft tiene su propio color (el mismo para 'Bi' en todos los jugadores) y la barra es más vistosa",
+				"La leyenda separa el tipo del número con un guion (ej: 'Mono - 3')",
+			},
+		},
 		{
 			Version: "1.9.0",
 			Fecha:   "2026-07-13",

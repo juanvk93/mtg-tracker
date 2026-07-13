@@ -403,23 +403,27 @@
       <div style="display:flex;height:16px;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:6px;border:0.5px solid var(--border)">
         {{$total := .DistribucionDrafts.Total}}
         {{if gt .DistribucionDrafts.Mono 0}}
-        <div title="Mono ({{.DistribucionDrafts.Mono}})" style="background:var(--text);width:{{redondear (mulPct .DistribucionDrafts.Mono $total)}}%"></div>
+        <div title="Mono ({{.DistribucionDrafts.Mono}})" style="background:var(--draft-mono);width:{{redondear (mulPct .DistribucionDrafts.Mono $total)}}%"></div>
         {{end}}
         {{if gt .DistribucionDrafts.Bicolor 0}}
-        <div title="Bicolor ({{.DistribucionDrafts.Bicolor}})" style="background:var(--text-muted);width:{{redondear (mulPct .DistribucionDrafts.Bicolor $total)}}%"></div>
+        <div title="Bi ({{.DistribucionDrafts.Bicolor}})" style="background:var(--draft-bi);width:{{redondear (mulPct .DistribucionDrafts.Bicolor $total)}}%"></div>
         {{end}}
         {{if gt .DistribucionDrafts.Tricolor 0}}
-        <div title="Tricolor ({{.DistribucionDrafts.Tricolor}})" style="background:var(--text-faint);width:{{redondear (mulPct .DistribucionDrafts.Tricolor $total)}}%"></div>
+        <div title="Tri ({{.DistribucionDrafts.Tricolor}})" style="background:var(--draft-tri);width:{{redondear (mulPct .DistribucionDrafts.Tricolor $total)}}%"></div>
         {{end}}
-        {{if gt .DistribucionDrafts.MasColor 0}}
-        <div title="4+ colores ({{.DistribucionDrafts.MasColor}})" style="background:var(--bg-surface);border-left:0.5px solid var(--border);width:{{redondear (mulPct .DistribucionDrafts.MasColor $total)}}%"></div>
+        {{if gt .DistribucionDrafts.Cuatricolor 0}}
+        <div title="Cuatri ({{.DistribucionDrafts.Cuatricolor}})" style="background:var(--draft-cuatri);width:{{redondear (mulPct .DistribucionDrafts.Cuatricolor $total)}}%"></div>
+        {{end}}
+        {{if gt .DistribucionDrafts.Pentacolor 0}}
+        <div title="Penta ({{.DistribucionDrafts.Pentacolor}})" style="background:var(--draft-penta);width:{{redondear (mulPct .DistribucionDrafts.Pentacolor $total)}}%"></div>
         {{end}}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:10px;color:var(--text-faint);margin-bottom:14px">
-        {{if gt .DistribucionDrafts.Mono 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--text);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Mono {{.DistribucionDrafts.Mono}}</span>{{end}}
-        {{if gt .DistribucionDrafts.Bicolor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--text-muted);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Bi {{.DistribucionDrafts.Bicolor}}</span>{{end}}
-        {{if gt .DistribucionDrafts.Tricolor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--text-faint);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Tri {{.DistribucionDrafts.Tricolor}}</span>{{end}}
-        {{if gt .DistribucionDrafts.MasColor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--bg-surface);border:0.5px solid var(--border);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>4+ {{.DistribucionDrafts.MasColor}}</span>{{end}}
+        {{if gt .DistribucionDrafts.Mono 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--draft-mono);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Mono - {{.DistribucionDrafts.Mono}}</span>{{end}}
+        {{if gt .DistribucionDrafts.Bicolor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--draft-bi);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Bi - {{.DistribucionDrafts.Bicolor}}</span>{{end}}
+        {{if gt .DistribucionDrafts.Tricolor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--draft-tri);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Tri - {{.DistribucionDrafts.Tricolor}}</span>{{end}}
+        {{if gt .DistribucionDrafts.Cuatricolor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--draft-cuatri);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Cuatri - {{.DistribucionDrafts.Cuatricolor}}</span>{{end}}
+        {{if gt .DistribucionDrafts.Pentacolor 0}}<span><span style="display:inline-block;width:8px;height:8px;background:var(--draft-penta);border-radius:2px;margin-right:3px;vertical-align:-1px"></span>Penta - {{.DistribucionDrafts.Pentacolor}}</span>{{end}}
       </div>
       {{end}}
 

@@ -558,7 +558,7 @@ func ObtenerVerdugoYVictima(db *sql.DB, jugadorID, temporadaID int) (*models.Riv
 }
 
 // ObtenerDistribucionDraftsJugador cuenta cuántos drafts ha hecho el jugador
-// con 1, 2, 3 o más colores en una temporada.
+// con 1, 2, 3, 4 o 5 colores en una temporada.
 func ObtenerDistribucionDraftsJugador(db *sql.DB, jugadorID, temporadaID int) (models.DistribucionDrafts, error) {
 	var dist models.DistribucionDrafts
 
@@ -589,8 +589,10 @@ func ObtenerDistribucionDraftsJugador(db *sql.DB, jugadorID, temporadaID int) (m
 			dist.Bicolor++
 		case 3:
 			dist.Tricolor++
+		case 4:
+			dist.Cuatricolor++
 		default:
-			dist.MasColor++
+			dist.Pentacolor++ // 5 colores (o más, por robustez)
 		}
 		if n > 0 {
 			dist.Total++

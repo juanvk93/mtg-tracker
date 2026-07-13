@@ -3,7 +3,7 @@
    sistema de variables, fondo crema, borders 0.5px, tipografía system-ui
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   --bg:           #f4f2ee;
@@ -15,35 +15,58 @@
   --text-muted:   #666;
   --text-faint:   #999;
   --accent:       #1a1a1a;
+  /* Acento dorado (Magic) y podio */
+  --brand:        #9a7420;
+  --brand-bg:     rgba(154,116,32,0.10);
+  --oro:          #b8860b;
+  --plata:        #8a8a8a;
+  --bronce:       #a9722e;
   --radius:       10px;
   --radius-sm:    6px;
-  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --shadow:       0 1px 2px rgba(0,0,0,0.04), 0 6px 18px rgba(0,0,0,0.07);
+  --shadow-hover: 0 2px 4px rgba(0,0,0,0.06), 0 10px 28px rgba(0,0,0,0.10);
+  --font:         -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Cinzel', Georgia, 'Times New Roman', serif;
 }
 
 /* Paleta oscura: automática por sistema (salvo que el usuario fuerce claro) y manual con data-theme="dark" */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:           #1a1918;
-    --bg-card:      #242322;
-    --bg-surface:   #2d2c2a;
-    --border:       rgba(255,255,255,0.1);
-    --border-hover: rgba(255,255,255,0.25);
-    --text:         #f0ede8;
-    --text-muted:   #999;
-    --text-faint:   #666;
+    --bg:           #161514;
+    --bg-card:      #211f1d;
+    --bg-surface:   #2b2926;
+    --border:       rgba(255,255,255,0.09);
+    --border-hover: rgba(255,255,255,0.24);
+    --text:         #f2efe9;
+    --text-muted:   #a0988c;
+    --text-faint:   #6b655d;
     --accent:       #f0ede8;
+    --brand:        #e0bd5e;
+    --brand-bg:     rgba(224,189,94,0.13);
+    --oro:          #e8c25a;
+    --plata:        #c2c2c2;
+    --bronce:       #cf9257;
+    --shadow:       0 1px 2px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.45);
+    --shadow-hover: 0 2px 6px rgba(0,0,0,0.4), 0 14px 34px rgba(0,0,0,0.55);
   }
 }
 :root[data-theme="dark"] {
-  --bg:           #1a1918;
-  --bg-card:      #242322;
-  --bg-surface:   #2d2c2a;
-  --border:       rgba(255,255,255,0.1);
-  --border-hover: rgba(255,255,255,0.25);
-  --text:         #f0ede8;
-  --text-muted:   #999;
-  --text-faint:   #666;
+  --bg:           #161514;
+  --bg-card:      #211f1d;
+  --bg-surface:   #2b2926;
+  --border:       rgba(255,255,255,0.09);
+  --border-hover: rgba(255,255,255,0.24);
+  --text:         #f2efe9;
+  --text-muted:   #a0988c;
+  --text-faint:   #6b655d;
   --accent:       #f0ede8;
+  --brand:        #e0bd5e;
+  --brand-bg:     rgba(224,189,94,0.13);
+  --oro:          #e8c25a;
+  --plata:        #c2c2c2;
+  --bronce:       #cf9257;
+  --shadow:       0 1px 2px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.45);
+  --shadow-hover: 0 2px 6px rgba(0,0,0,0.4), 0 14px 34px rgba(0,0,0,0.55);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -52,6 +75,8 @@ html { scroll-behavior: smooth; }
 body {
   font-family: var(--font);
   background: var(--bg);
+  background-image: radial-gradient(1100px 420px at 50% -140px, var(--brand-bg), transparent 72%);
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
   font-size: 14px;
@@ -61,7 +86,10 @@ body {
 
 /* === NAVEGACIÓN === */
 .nav {
-  background: var(--bg-card);
+  background: var(--bg-card); /* fallback si no hay color-mix */
+  background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+  backdrop-filter: saturate(1.4) blur(8px);
+  -webkit-backdrop-filter: saturate(1.4) blur(8px);
   border-bottom: 0.5px solid var(--border);
   position: sticky;
   top: 0;
@@ -79,16 +107,20 @@ body {
 }
 
 .nav-logo {
-  font-size: 15px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text);
   text-decoration: none;
-  letter-spacing: -0.2px;
+  letter-spacing: 0.4px;
   display: flex;
   align-items: center;
   gap: 8px;
   white-space: nowrap;
 }
+.nav-logo i { color: var(--brand); font-size: 18px; }
+
+.nav-links a.active { color: var(--text); background: var(--bg-surface); position: relative; }
 
 .nav-links {
   display: flex;
@@ -142,16 +174,17 @@ body {
 }
 
 .page-title {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.4px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
   color: var(--text);
 }
 
 .page-subtitle {
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
 /* === CARDS === */
@@ -160,6 +193,7 @@ body {
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
   padding: 1.25rem;
+  box-shadow: var(--shadow);
 }
 
 .card-sm { padding: 1rem; }
@@ -167,8 +201,8 @@ body {
 /* === STATS === */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
   margin-bottom: 1.5rem;
 }
 
@@ -176,13 +210,26 @@ body {
   background: var(--bg-card);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 18px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow);
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
 }
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); border-color: var(--border-hover); }
+
+/* KPI destacado (MVP / líder) con acento dorado */
+.stat-card.kpi-hero {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border));
+  background:
+    linear-gradient(180deg, var(--brand-bg), transparent 60%),
+    var(--bg-card);
+}
+.stat-card.kpi-hero .stat-label { color: var(--brand); }
 
 .stat-value {
+  font-family: var(--font-display);
   font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -1px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
   color: var(--text);
 }
 
@@ -218,16 +265,25 @@ body {
 
 .ranking-table td:not(:first-child) { text-align: center; }
 .ranking-table tr:last-child td { border-bottom: none; }
+.ranking-table tbody tr { transition: background 0.1s; }
 .ranking-table tr:hover td { background: var(--bg-surface); }
 
+/* Podio: fila del líder con acento dorado */
+.ranking-table tr.fila-lider td { background: var(--brand-bg); }
+.ranking-table tr.fila-lider td:first-child { box-shadow: inset 3px 0 0 var(--oro); }
+
 .rank-num {
-  font-size: 13px;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text-faint);
   width: 2rem;
   display: inline-block;
   text-align: center;
 }
+.rank-num.rank-1 { color: var(--oro); }
+.rank-num.rank-2 { color: var(--plata); }
+.rank-num.rank-3 { color: var(--bronce); }
 
 .jugador-cell {
   display: flex;
@@ -236,27 +292,39 @@ body {
 }
 
 .avatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1rem;
   flex-shrink: 0;
-  border: 0.5px solid var(--border);
+  border: 1.5px solid var(--border);
   background: var(--bg-surface);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03);
 }
 
-.avatar-sm { width: 24px; height: 24px; font-size: 0.8rem; }
+.avatar-sm { width: 26px; height: 26px; font-size: 0.8rem; border-width: 1px; }
 
-.jugador-nombre { font-weight: 500; font-size: 13px; }
+.jugador-nombre { font-weight: 600; font-size: 13px; }
 
-/* === WIN RATE === */
-.win-rate { font-weight: 600; }
-.win-rate.alta  { color: #2d7a47; }
-.win-rate.media { color: var(--text-muted); }
-.win-rate.baja  { color: #a0391a; }
+/* === WIN RATE (píldora) === */
+.win-rate {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  border: 0.5px solid transparent;
+}
+.win-rate.alta  { color: #2d7a47; background: rgba(45,122,71,0.12);  border-color: rgba(45,122,71,0.22); }
+.win-rate.media { color: var(--text-muted); background: var(--bg-surface); border-color: var(--border); }
+.win-rate.baja  { color: #a0391a; background: rgba(160,57,26,0.10); border-color: rgba(160,57,26,0.22); }
+@media (prefers-color-scheme: dark) {
+  .win-rate.alta { color: #5aba7a; }
+  .win-rate.baja { color: #e0785a; }
+}
 
 /* === RACHA === */
 .racha {
@@ -555,13 +623,23 @@ textarea.form-input { height: auto; min-height: 80px; resize: vertical; line-hei
 
 .section-title {
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-bottom: 1rem;
   padding-bottom: 8px;
   border-bottom: 0.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::before {
+  content: "";
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--brand);
 }
 
 /* Tabla admin */
@@ -893,18 +971,27 @@ hr.divider {
   border-radius: var(--radius-sm);
   color: var(--text-faint);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1;
   padding: 5px 9px;
-  transition: color 0.1s, border-color 0.1s;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
 }
-.tema-toggle:hover { color: var(--text); border-color: var(--border-hover); }
+.tema-toggle:hover { border-color: var(--border-hover); background: var(--bg-surface); }
+/* Icono según tema: luna en claro (para ir a oscuro), sol en oscuro */
+.tema-toggle .t-sol { display: none; }
+.tema-toggle .t-luna { display: inline; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tema-toggle .t-sol { display: inline; }
+  :root:not([data-theme="light"]) .tema-toggle .t-luna { display: none; }
+}
+:root[data-theme="dark"] .tema-toggle .t-sol { display: inline; }
+:root[data-theme="dark"] .tema-toggle .t-luna { display: none; }
 
 /* === PREMIOS DE TEMPORADA === */
 .premios-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
 }
 .premio-card {
   display: flex;
@@ -913,9 +1000,17 @@ hr.divider {
   background: var(--bg-card);
   border: 0.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  transition: transform 0.12s, box-shadow 0.12s;
 }
-.premio-emoji { font-size: 1.7rem; line-height: 1; }
+.premio-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+/* La primera tarjeta (MVP) con acento dorado */
+.premios-grid .premio-card:first-child {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--border));
+  background: linear-gradient(180deg, var(--brand-bg), transparent 60%), var(--bg-card);
+}
+.premio-emoji { font-size: 1.9rem; line-height: 1; }
 .premio-titulo { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-faint); font-weight: 600; }
 .premio-jugador { font-size: 14px; font-weight: 600; margin-top: 2px; }
 .premio-valor { font-size: 12px; color: var(--text-muted); margin-top: 1px; }

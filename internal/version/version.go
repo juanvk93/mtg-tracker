@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.6.0"
+const Version = "1.7.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,18 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.7.0",
+			Fecha:   "2026-07-13",
+			Cambios: []string{
+				"Rediseño visual: acento dorado, tipografía Cinzel en titulares y tarjetas con relieve",
+				"Podio en el ranking: líder destacado y posiciones 1/2/3 en oro, plata y bronce",
+				"KPIs rediseñados; el líder y el mejor win rate se fusionan en una tarjeta MVP cuando es el mismo jugador",
+				"Win rate mostrado como píldora de color y rachas de victorias con icono de fuego",
+				"Barra de navegación translúcida, con estado activo y botón de tema con icono sol/luna",
+				"Premios de temporada con la tarjeta de MVP destacada",
+			},
+		},
 		{
 			Version: "1.6.0",
 			Fecha:   "2026-07-05",

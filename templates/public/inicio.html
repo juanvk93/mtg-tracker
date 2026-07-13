@@ -33,17 +33,22 @@
 {{else}}
 
 <div class="stats-grid">
-  {{if .LiderVict}}
-  <div class="stat-card">
-    <div class="stat-value" style="font-size:1.1rem">{{renderAvatar .LiderVict.Jugador.Avatar}} {{.LiderVict.Jugador.Nombre}}</div>
-    <div class="stat-label">🏆 Líder · {{.LiderVict.Victorias}} victoria{{if ne .LiderVict.Victorias 1}}s{{end}}</div>
-  </div>
-  {{end}}
-  {{if .LiderWR}}
-  <div class="stat-card">
-    <div class="stat-value" style="font-size:1.1rem">{{renderAvatar .LiderWR.Jugador.Avatar}} {{.LiderWR.Jugador.Nombre}}</div>
-    <div class="stat-label">📈 Mejor win rate · {{formatPct .LiderWR.WinRate}}</div>
-  </div>
+  {{if and .LiderVict .LiderWR}}
+    {{if eq .LiderVict.Jugador.ID .LiderWR.Jugador.ID}}
+    <div class="stat-card kpi-hero">
+      <div class="stat-value" style="font-size:1.15rem">{{renderAvatar .LiderVict.Jugador.Avatar}} {{.LiderVict.Jugador.Nombre}}</div>
+      <div class="stat-label">🏆 MVP · {{.LiderVict.Victorias}} victoria{{if ne .LiderVict.Victorias 1}}s{{end}} · {{formatPct .LiderWR.WinRate}} WR</div>
+    </div>
+    {{else}}
+    <div class="stat-card kpi-hero">
+      <div class="stat-value" style="font-size:1.15rem">{{renderAvatar .LiderVict.Jugador.Avatar}} {{.LiderVict.Jugador.Nombre}}</div>
+      <div class="stat-label">🏆 Líder · {{.LiderVict.Victorias}} victoria{{if ne .LiderVict.Victorias 1}}s{{end}}</div>
+    </div>
+    <div class="stat-card kpi-hero">
+      <div class="stat-value" style="font-size:1.15rem">{{renderAvatar .LiderWR.Jugador.Avatar}} {{.LiderWR.Jugador.Nombre}}</div>
+      <div class="stat-label">📈 Mejor win rate · {{formatPct .LiderWR.WinRate}}</div>
+    </div>
+    {{end}}
   {{end}}
   <div class="stat-card">
     <div class="stat-value">{{len .Ranking}}</div>
@@ -82,8 +87,8 @@
     </thead>
     <tbody>
       {{range $i, $fila := .Ranking}}
-      <tr>
-        <td><span class="rank-num">{{add1 $i}}</span></td>
+      <tr{{if eq $i 0}} class="fila-lider"{{end}}>
+        <td><span class="rank-num rank-{{add1 $i}}">{{add1 $i}}</span></td>
         <td data-val="{{$fila.Jugador.Nombre}}">
           <a href="/jugador/{{$fila.Jugador.ID}}" class="jugador-link">
             <div class="jugador-cell">
@@ -106,7 +111,7 @@
           {{if eq $fila.RachaActual 0}}
             <span class="racha">—</span>
           {{else if eq $fila.RachaTipo "W"}}
-            <span class="racha win">{{$fila.RachaActual}}V</span>
+            <span class="racha win">🔥 {{$fila.RachaActual}}</span>
           {{else}}
             <span class="racha loss">{{$fila.RachaActual}}D</span>
           {{end}}

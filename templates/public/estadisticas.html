@@ -389,8 +389,9 @@
         {{if gt .RachaRecord.Longitud 0}}
         <div style="display:flex;align-items:center;gap:8px;font-size:12px">
           <span style="color:var(--text-faint);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;width:80px;flex-shrink:0">Récord</span>
+          {{$n := .RachaRecord.Longitud}}
           <span class="racha {{if eq .RachaRecord.Tipo "W"}}win{{else}}loss{{end}}" style="font-size:11px">
-            {{.RachaRecord.Longitud}}{{.RachaRecord.Tipo}} consecutivas
+            {{$n}} draft{{if ne $n 1}}s{{end}}{{if eq .RachaRecord.Tipo "L"}} perdido{{if ne $n 1}}s{{end}}{{end}}{{if ne $n 1}} seguidos{{end}}
           </span>
         </div>
         {{end}}

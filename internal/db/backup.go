@@ -6,7 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"mtg-tracker/internal/models"
 )
+
+// VersionBackup es la versión del formato. 1.1 añade jugadores.activo y resultados.notas;
+// los backups 1.0 se siguen importando (jugadores activos y notas vacías).
+const VersionBackup = "1.1"
 
 // ========== ESTRUCTURAS DEL BACKUP ==========
 
@@ -26,6 +32,8 @@ type BackupJugador struct {
 	Nombre string `json:"nombre"`
 	Color  string `json:"color"`
 	Avatar string `json:"avatar"`
+	// Activo es puntero para distinguir "no viene en el backup" (1.0 → activo) de false
+	Activo *bool `json:"activo,omitempty"`
 }
 
 // BackupTemporada representa una temporada en el backup
@@ -50,6 +58,7 @@ type BackupResultado struct {
 	JugadorID int      `json:"jugador_id"`
 	Victorias []int    `json:"victorias"` // IDs de rivales vencidos
 	Colores   []string `json:"colores"`   // códigos: W, U, B, R, G
+	Notas     string   `json:"notas,omitempty"`
 }
 
 // ========== EXPORTAR ==========
@@ -57,22 +66,24 @@ type BackupResultado struct {
 // ExportarBackup lee toda la base de datos y devuelve un Backup serializado como JSON
 func ExportarBackup(db *sql.DB) ([]byte, error) {
 	backup := Backup{
-		Version:     "1.0",
+		Version:     VersionBackup,
 		FechaExport: time.Now().UTC(),
 	}
 
 	// Jugadores
 	if err := func() error {
-		rows, err := db.Query(`SELECT id, nombre, color, avatar FROM jugadores ORDER BY id`)
+		rows, err := db.Query(`SELECT id, nombre, color, avatar, activo FROM jugadores ORDER BY id`)
 		if err != nil {
 			return fmt.Errorf("exportar jugadores: %w", err)
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var j BackupJugador
-			if err := rows.Scan(&j.ID, &j.Nombre, &j.Color, &j.Avatar); err != nil {
+			var activo bool
+			if err := rows.Scan(&j.ID, &j.Nombre, &j.Color, &j.Avatar, &activo); err != nil {
 				return err
 			}
+			j.Activo = &activo
 			backup.Jugadores = append(backup.Jugadores, j)
 		}
 		return rows.Err()
@@ -125,18 +136,19 @@ func ExportarBackup(db *sql.DB) ([]byte, error) {
 		id        int
 		sesionID  int
 		jugadorID int
+		notas     string
 	}
 	var rawResultados []resultadoRaw
 
 	if err := func() error {
-		rows, err := db.Query(`SELECT id, sesion_id, jugador_id FROM resultados ORDER BY sesion_id, jugador_id`)
+		rows, err := db.Query(`SELECT id, sesion_id, jugador_id, notas FROM resultados ORDER BY sesion_id, jugador_id`)
 		if err != nil {
 			return fmt.Errorf("exportar resultados: %w", err)
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var r resultadoRaw
-			if err := rows.Scan(&r.id, &r.sesionID, &r.jugadorID); err != nil {
+			if err := rows.Scan(&r.id, &r.sesionID, &r.jugadorID, &r.notas); err != nil {
 				return err
 			}
 			rawResultados = append(rawResultados, r)
@@ -151,6 +163,7 @@ func ExportarBackup(db *sql.DB) ([]byte, error) {
 		br := BackupResultado{
 			SesionID:  raw.sesionID,
 			JugadorID: raw.jugadorID,
+			Notas:     raw.notas,
 			Victorias: []int{},    // inicializar como array vacío, nunca null en JSON
 			Colores:   []string{}, // ídem
 		}
@@ -262,9 +275,10 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 		err := tx.QueryRow(`SELECT id FROM jugadores WHERE nombre=$1`, j.Nombre).Scan(&idExistente)
 		if err == sql.ErrNoRows {
 			// Insertar nuevo jugador
+			activo := j.Activo == nil || *j.Activo
 			err = tx.QueryRow(
-				`INSERT INTO jugadores (nombre, color, avatar) VALUES ($1, $2, $3) RETURNING id`,
-				j.Nombre, j.Color, j.Avatar,
+				`INSERT INTO jugadores (nombre, color, avatar, activo) VALUES ($1, $2, $3, $4) RETURNING id`,
+				j.Nombre, j.Color, models.NormalizarAvatar(j.Avatar), activo,
 			).Scan(&idExistente)
 			if err != nil {
 				return nil, fmt.Errorf("insertar jugador '%s': %w", j.Nombre, err)
@@ -281,13 +295,29 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 
 	// ── Temporadas ──
 	// Estrategia: buscar por año. Si existe, usar su ID. Si no, insertar.
+	// Solo puede haber UNA temporada activa: si ya hay una (en la BD o insertada antes
+	// en esta importación), las demás que vengan como activas se importan cerradas.
+	var hayActiva bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM temporadas WHERE estado='activa')`).Scan(&hayActiva); err != nil {
+		return nil, fmt.Errorf("comprobar temporada activa: %w", err)
+	}
 	for _, t := range backup.Temporadas {
 		var idExistente int
 		err := tx.QueryRow(`SELECT id FROM temporadas WHERE anio=$1`, t.Anio).Scan(&idExistente)
 		if err == sql.ErrNoRows {
+			estado := "cerrada"
+			if t.Estado == "activa" {
+				if hayActiva {
+					resultado.Advertencias = append(resultado.Advertencias,
+						fmt.Sprintf("Temporada %d importada como cerrada: ya hay otra temporada activa", t.Anio))
+				} else {
+					estado = "activa"
+					hayActiva = true
+				}
+			}
 			err = tx.QueryRow(
 				`INSERT INTO temporadas (anio, estado) VALUES ($1, $2) RETURNING id`,
-				t.Anio, t.Estado,
+				t.Anio, estado,
 			).Scan(&idExistente)
 			if err != nil {
 				return nil, fmt.Errorf("insertar temporada %d: %w", t.Anio, err)
@@ -303,7 +333,15 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 	}
 
 	// ── Sesiones ──
-	// Estrategia: buscar por (temporada_id, fecha). Si existe, usar su ID. Si no, insertar.
+	// Estrategia: buscar una sesión que YA existiera antes de importar con la misma
+	// temporada y fecha (prefiriendo la misma descripción) y que no se haya asignado ya a
+	// otra sesión del backup. Así dos drafts del mismo día no se fusionan en uno, y
+	// reimportar el mismo backup sigue sin duplicar nada. Si no hay candidata, se inserta.
+	var maxSesionPrevia int
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(id), 0) FROM sesiones`).Scan(&maxSesionPrevia); err != nil {
+		return nil, fmt.Errorf("leer sesiones existentes: %w", err)
+	}
+	sesionAsignada := make(map[int]bool) // ID en BD → ya usada por otra sesión del backup
 	for _, s := range backup.Sesiones {
 		nuevaTemporadaID, ok := mapaTemporadas[s.TemporadaID]
 		if !ok {
@@ -312,12 +350,7 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 			continue
 		}
 
-		var idExistente int
-		err := tx.QueryRow(
-			`SELECT id FROM sesiones WHERE temporada_id=$1 AND fecha=$2`,
-			nuevaTemporadaID, s.Fecha,
-		).Scan(&idExistente)
-
+		idExistente, err := buscarSesionExistente(tx, nuevaTemporadaID, s.Fecha, s.Descripcion, maxSesionPrevia, sesionAsignada)
 		if err == sql.ErrNoRows {
 			err = tx.QueryRow(
 				`INSERT INTO sesiones (temporada_id, fecha, descripcion, enfrentamiento_unico) VALUES ($1, $2, $3, $4) RETURNING id`,
@@ -331,13 +364,20 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 			return nil, fmt.Errorf("buscar sesión %s: %w", s.Fecha, err)
 		} else {
 			resultado.Advertencias = append(resultado.Advertencias,
-				fmt.Sprintf("Sesión %s ya existe, se usa la existente", s.Fecha))
+				fmt.Sprintf("Sesión %s ya existe: se reutiliza y solo se añaden los resultados que le falten", s.Fecha))
 		}
+		sesionAsignada[idExistente] = true
 		mapaSesiones[s.ID] = idExistente
 	}
 
 	// ── Resultados ──
 	// Estrategia: buscar por (sesion_id, jugador_id). Si existe, omitir. Si no, insertar.
+	// Participantes de cada sesión según el backup: una victoria solo es válida contra
+	// otro jugador que también jugó esa sesión (si no, el ranking descuadra).
+	participa := make(map[[2]int]bool) // (sesión, jugador) con IDs del backup
+	for _, r := range backup.Resultados {
+		participa[[2]int{r.SesionID, r.JugadorID}] = true
+	}
 	for _, r := range backup.Resultados {
 		nuevaSesionID, ok := mapaSesiones[r.SesionID]
 		if !ok {
@@ -364,8 +404,8 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 		if err == sql.ErrNoRows {
 			// Insertar resultado
 			err = tx.QueryRow(
-				`INSERT INTO resultados (sesion_id, jugador_id) VALUES ($1, $2) RETURNING id`,
-				nuevaSesionID, nuevoJugadorID,
+				`INSERT INTO resultados (sesion_id, jugador_id, notas) VALUES ($1, $2, $3) RETURNING id`,
+				nuevaSesionID, nuevoJugadorID, r.Notas,
 			).Scan(&resultadoID)
 			if err != nil {
 				return nil, fmt.Errorf("insertar resultado jugador %d sesión %d: %w",
@@ -374,7 +414,14 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 			resultado.ResultadosInsertados++
 
 			// Insertar victorias
+			rivalVisto := make(map[int]bool)
 			for _, rivalIDAntiguo := range r.Victorias {
+				if rivalIDAntiguo == r.JugadorID || rivalVisto[rivalIDAntiguo] || !participa[[2]int{r.SesionID, rivalIDAntiguo}] {
+					resultado.Advertencias = append(resultado.Advertencias,
+						fmt.Sprintf("Victoria omitida: el rival ID %d no es válido en la sesión ID %d", rivalIDAntiguo, r.SesionID))
+					continue
+				}
+				rivalVisto[rivalIDAntiguo] = true
 				nuevoRivalID, ok := mapaJugadores[rivalIDAntiguo]
 				if !ok {
 					resultado.Advertencias = append(resultado.Advertencias,
@@ -390,8 +437,13 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 				}
 			}
 
-			// Insertar colores
+			// Insertar colores (sin repetidos: un color duplicado contaría doble en los KPIs)
+			colorVisto := make(map[string]bool)
 			for _, color := range r.Colores {
+				if colorVisto[color] {
+					continue
+				}
+				colorVisto[color] = true
 				_, err = tx.Exec(
 					`INSERT INTO colores_jugados (resultado_id, color) VALUES ($1, $2)`,
 					resultadoID, color,
@@ -414,4 +466,43 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 	}
 
 	return resultado, nil
+}
+
+// buscarSesionExistente devuelve la sesión previa a la importación (id <= maxPrevia) con esa
+// temporada y fecha que aún no esté asignada, prefiriendo la de igual descripción.
+// Devuelve sql.ErrNoRows si no hay ninguna.
+func buscarSesionExistente(tx *sql.Tx, temporadaID int, fecha, descripcion string, maxPrevia int, asignadas map[int]bool) (int, error) {
+	rows, err := tx.Query(`
+		SELECT id, descripcion FROM sesiones
+		WHERE temporada_id=$1 AND fecha=$2 AND id <= $3
+		ORDER BY id`, temporadaID, fecha, maxPrevia)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	candidata := 0
+	for rows.Next() {
+		var id int
+		var desc string
+		if err := rows.Scan(&id, &desc); err != nil {
+			return 0, err
+		}
+		if asignadas[id] {
+			continue
+		}
+		if desc == descripcion {
+			return id, nil
+		}
+		if candidata == 0 {
+			candidata = id
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+	if candidata == 0 {
+		return 0, sql.ErrNoRows
+	}
+	return candidata, nil
 }

@@ -215,17 +215,8 @@ func cargarTemplates() *template.Template {
 		},
 		// Catálogo de iconos Mana Font para selector de avatar
 		"iconosJugador": models.IconosJugador,
-		// Renderizar avatar: si empieza con "ms-" es un icono de Mana Font, si no es un emoji legacy
-		"renderAvatar": func(avatar string) template.HTML {
-			if avatar == "" {
-				avatar = "ms-planeswalker"
-			}
-			if len(avatar) > 3 && avatar[:3] == "ms-" {
-				return template.HTML(fmt.Sprintf(`<i class="ms %s" aria-hidden="true"></i>`, avatar))
-			}
-			// Fallback para avatares legacy (emojis)
-			return template.HTML(template.HTMLEscapeString(avatar))
-		},
+		// Renderizar avatar: icono de Mana Font (clase validada) o emoji legacy escapado
+		"renderAvatar": models.RenderAvatar,
 	}
 
 	// Parsear templates — cada template es autosuficiente con su propio HTML completo.

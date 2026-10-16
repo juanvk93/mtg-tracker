@@ -81,8 +81,9 @@
       <div style="background:var(--bg-surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:0.75rem 1rem;margin-bottom:1.25rem;font-size:12px;color:var(--text-muted);line-height:1.7">
         · Los jugadores se identifican por nombre. Si ya existe, se reutiliza.<br>
         · Las temporadas se identifican por año. Si ya existe, se reutiliza.<br>
-        · Las sesiones se identifican por temporada + fecha. Si ya existe, se omite.<br>
-        · Los resultados que ya existen se omiten. La importación nunca borra datos.
+        · Las sesiones se identifican por temporada + fecha (y descripción si hay varias el mismo día). Si ya existe, se reutiliza y solo se le añaden los resultados que le falten.<br>
+        · Los resultados que ya existen se omiten. La importación nunca borra datos.<br>
+        · Solo puede quedar una temporada activa: si ya hay una, las que vengan activas se importan cerradas.
       </div>
       <div style="display:flex;gap:8px">
         <button type="submit" class="btn btn-primary">Importar datos</button>

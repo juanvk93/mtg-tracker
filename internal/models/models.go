@@ -4,8 +4,10 @@ package models
 import (
 	"fmt"
 	"html/template"
+	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Temporada representa un año de juego (ej: 2026)
@@ -287,4 +289,48 @@ func EmojiColor(codigo string) template.HTML {
 		`<i class="ms ms-%s ms-cost" aria-hidden="true"></i>`,
 		letra,
 	))
+}
+
+// AvatarPorDefecto es el icono que se usa cuando un jugador no tiene avatar válido
+const AvatarPorDefecto = "ms-planeswalker"
+
+// reClaseMana es el formato de una clase de Mana Font ("ms-" + letras, números y guiones)
+var reClaseMana = regexp.MustCompile(`^ms-[a-z0-9-]+$`)
+
+// NormalizarAvatar valida un avatar antes de guardarlo (formulario o backup):
+//   - Clases de Mana Font: solo si tienen formato de clase válido (ms-…). Cualquier
+//     otra cosa que empiece por "ms-" podría inyectar HTML en el atributo class.
+//   - Avatares antiguos (emojis): se aceptan si son cortos; al pintarlos se escapan.
+//
+// Lo que no cumple se sustituye por el avatar por defecto.
+func NormalizarAvatar(avatar string) string {
+	avatar = strings.TrimSpace(avatar)
+	switch {
+	case avatar == "":
+		return AvatarPorDefecto
+	case strings.HasPrefix(avatar, "ms-"):
+		if reClaseMana.MatchString(avatar) {
+			return avatar
+		}
+		return AvatarPorDefecto
+	case utf8.RuneCountInString(avatar) <= 8:
+		return avatar
+	default:
+		return AvatarPorDefecto
+	}
+}
+
+// RenderAvatar devuelve el HTML del avatar: icono de Mana Font si es una clase válida,
+// o el texto escapado (emojis antiguos). Nunca inserta el valor sin validar/escapar.
+func RenderAvatar(avatar string) template.HTML {
+	if avatar == "" {
+		avatar = AvatarPorDefecto
+	}
+	if strings.HasPrefix(avatar, "ms-") {
+		if !reClaseMana.MatchString(avatar) {
+			avatar = AvatarPorDefecto
+		}
+		return template.HTML(`<i class="ms ` + avatar + `" aria-hidden="true"></i>`)
+	}
+	return template.HTML(template.HTMLEscapeString(avatar))
 }

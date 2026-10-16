@@ -18,7 +18,8 @@ import (
 
 // ========== AUTENTICACIÓN ADMIN ==========
 
-// MiddlewareAdmin verifica la contraseña de admin en la sesión de cookie
+// MiddlewareAdmin verifica la contraseña de admin en la sesión de cookie y, en las
+// peticiones que modifican datos, que vengan de la propia web (protección CSRF).
 func MiddlewareAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("admin_auth")
@@ -26,7 +27,56 @@ func MiddlewareAdmin(next http.HandlerFunc) http.HandlerFunc {
 			http.Redirect(w, r, "/admin/login", http.StatusFound)
 			return
 		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead && !mismoOrigen(r) {
+			http.Error(w, "Petición rechazada: no procede de esta web", http.StatusForbidden)
+			return
+		}
 		next(w, r)
+	}
+}
+
+// mismoOrigen comprueba que un POST lo envía un formulario de esta misma web. Los
+// navegadores ponen Origin (o al menos Referer) en los POST; si una web ajena intenta
+// enviar un formulario con la cookie del admin, su origen no coincide con nuestro Host.
+// Sin ninguna de las dos cabeceras no es un navegador (p. ej. curl) y no hay CSRF posible.
+func mismoOrigen(r *http.Request) bool {
+	origen := r.Header.Get("Origin")
+	if origen == "" {
+		origen = r.Header.Get("Referer")
+	}
+	if origen == "" {
+		return true
+	}
+	u, err := url.Parse(origen)
+	if err != nil || u.Host == "" {
+		return false // incluye Origin: null
+	}
+	// Hosts válidos: el de la petición y, por si el proxy de Render lo reescribe, el
+	// reenviado y el de la URL pública que define Render
+	validos := []string{r.Host, r.Header.Get("X-Forwarded-Host")}
+	if pub, err := url.Parse(os.Getenv("RENDER_EXTERNAL_URL")); err == nil {
+		validos = append(validos, pub.Host)
+	}
+	for _, h := range validos {
+		if h != "" && strings.EqualFold(u.Host, h) {
+			return true
+		}
+	}
+	return false
+}
+
+// cookieAdmin construye la cookie de sesión admin. Secure solo cuando la petición llega
+// por HTTPS (Render pone X-Forwarded-Proto), para no romper el login en local por http.
+// SameSite=Lax hace que el navegador no la envíe en POST lanzados desde otras webs.
+func cookieAdmin(r *http.Request, valor string, maxAge int) *http.Cookie {
+	return &http.Cookie{
+		Name:     "admin_auth",
+		Value:    valor,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https",
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   maxAge,
 	}
 }
 
@@ -44,13 +94,7 @@ func (a *AppHandlers) AdminLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		password := r.FormValue("password")
 		if password == passwordAdmin() {
-			http.SetCookie(w, &http.Cookie{
-				Name:     "admin_auth",
-				Value:    password,
-				Path:     "/",
-				HttpOnly: true,
-				MaxAge:   86400 * 30, // 30 días
-			})
+			http.SetCookie(w, cookieAdmin(r, password, 86400*30)) // 30 días
 			http.Redirect(w, r, "/admin", http.StatusFound)
 			return
 		}
@@ -62,12 +106,7 @@ func (a *AppHandlers) AdminLogin(w http.ResponseWriter, r *http.Request) {
 
 // AdminLogout cierra la sesión de admin
 func (a *AppHandlers) AdminLogout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:   "admin_auth",
-		Value:  "",
-		Path:   "/",
-		MaxAge: -1,
-	})
+	http.SetCookie(w, cookieAdmin(r, "", -1))
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
@@ -361,27 +400,35 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 		http.NotFound(w, r)
 		return
 	}
+	if _, err := db.ObtenerSesion(a.DB, sesionID); err != nil {
+		http.NotFound(w, r)
+		return
+	}
 
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Error al parsear formulario", http.StatusBadRequest)
 		return
 	}
 
+	descripcion := r.FormValue("descripcion")
+	enfrentamientoUnico := r.FormValue("enfrentamiento_unico") == "on"
+
 	// Obtener los jugadores seleccionados para esta sesión
 	jugadoresStr := r.FormValue("jugadores_sesion")
 	if jugadoresStr == "" {
-		db.ActualizarDescripcionSesion(a.DB, sesionID, r.FormValue("descripcion"), r.FormValue("enfrentamiento_unico") == "on")
+		if err := db.ActualizarDescripcionSesion(a.DB, sesionID, descripcion, enfrentamientoUnico); err != nil {
+			log.Println("Error al actualizar la sesión:", err)
+			http.Error(w, "Error al guardar la sesión", http.StatusInternalServerError)
+			return
+		}
 		http.Redirect(w, r, fmt.Sprintf("/admin/sesion/%d/resultados", sesionID), http.StatusFound)
 		return
 	}
 
-	jugadoresSesion := strings.Split(jugadoresStr, ",")
-
 	// Construir el conjunto de IDs de jugadores que van a estar en la sesión
 	jugadoresNuevos := make(map[int]bool)
-	for _, jugIDStr := range jugadoresSesion {
-		jugIDStr = strings.TrimSpace(jugIDStr)
-		if jugID, err := strconv.Atoi(jugIDStr); err == nil && jugID > 0 {
+	for _, jugIDStr := range strings.Split(jugadoresStr, ",") {
+		if jugID, err := strconv.Atoi(strings.TrimSpace(jugIDStr)); err == nil && jugID > 0 {
 			jugadoresNuevos[jugID] = true
 		}
 	}
@@ -389,8 +436,6 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 	// En modo "cada pareja se enfrenta una vez" no puede haber victorias cruzadas
 	// (A venció a B y B venció a A). El JS ya lo impide; esto es la red de seguridad.
 	// Se valida ANTES de escribir nada, para que un envío rechazado no deje cambios a medias.
-	descripcion := r.FormValue("descripcion")
-	enfrentamientoUnico := r.FormValue("enfrentamiento_unico") == "on"
 	if enfrentamientoUnico {
 		if a1, a2, ok := victoriaCruzada(r.Form, jugadoresNuevos); ok {
 			j1, _ := db.ObtenerJugador(a.DB, a1)
@@ -400,41 +445,55 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	// Actualizar descripción y modo de enfrentamiento de la sesión
-	db.ActualizarDescripcionSesion(a.DB, sesionID, descripcion, enfrentamientoUnico)
-
-	// Borrar solo los resultados de jugadores que YA NO están en la sesión
-	// (los que sí están se actualizarán individualmente en GuardarResultadoSesion)
-	jugadoresAnteriores, _ := db.ObtenerJugadoresEnSesion(a.DB, sesionID)
-	for _, jugID := range jugadoresAnteriores {
-		if !jugadoresNuevos[jugID] {
-			// Este jugador ya no juega: borrar su resultado
-			a.DB.Exec(`DELETE FROM resultados WHERE sesion_id=$1 AND jugador_id=$2`, sesionID, jugID)
-		}
+	resultados := make([]db.ResultadoJugador, 0, len(jugadoresNuevos))
+	for jugID := range jugadoresNuevos {
+		resultados = append(resultados, db.ResultadoJugador{
+			JugadorID: jugID,
+			Victorias: victoriasValidas(r.Form[fmt.Sprintf("victoria_%d", jugID)], jugID, jugadoresNuevos),
+			Colores:   coloresValidos(r.Form[fmt.Sprintf("color_%d", jugID)]),
+			Notas:     strings.TrimSpace(r.FormValue(fmt.Sprintf("notas_%d", jugID))),
+		})
 	}
 
-	// Guardar/actualizar resultado de cada jugador activo
-	for jugID := range jugadoresNuevos {
-		victoriasKey := fmt.Sprintf("victoria_%d", jugID)
-		victoriasStrs := r.Form[victoriasKey]
-		var victorias []int
-		for _, vs := range victoriasStrs {
-			if id, err := strconv.Atoi(vs); err == nil {
-				victorias = append(victorias, id)
-			}
-		}
-
-		coloresKey := fmt.Sprintf("color_%d", jugID)
-		colores := r.Form[coloresKey]
-
-		notas := strings.TrimSpace(r.FormValue(fmt.Sprintf("notas_%d", jugID)))
-
-		if err := db.GuardarResultadoSesion(a.DB, sesionID, jugID, victorias, nil, colores, notas); err != nil {
-			log.Printf("Error al guardar resultado del jugador %d: %v", jugID, err)
-		}
+	// Toda la sesión en una transacción: si algo falla no se guarda nada
+	if err := db.GuardarResultadosSesion(a.DB, sesionID, descripcion, enfrentamientoUnico, resultados); err != nil {
+		log.Printf("Error al guardar los resultados de la sesión %d: %v", sesionID, err)
+		http.Error(w, "No se pudieron guardar los resultados (no se ha modificado nada). Vuelve atrás e inténtalo de nuevo.", http.StatusInternalServerError)
+		return
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/sesion/%d", sesionID), http.StatusFound)
+}
+
+// victoriasValidas filtra los rivales enviados: solo jugadores que participan en la
+// sesión, nunca uno mismo y sin repetidos. Una victoria sobre alguien que no juega
+// sumaría una V sin la D correspondiente y descuadraría el ranking.
+func victoriasValidas(valores []string, jugID int, enSesion map[int]bool) []int {
+	vistos := map[int]bool{}
+	var victorias []int
+	for _, v := range valores {
+		rival, err := strconv.Atoi(v)
+		if err != nil || rival == jugID || !enSesion[rival] || vistos[rival] {
+			continue
+		}
+		vistos[rival] = true
+		victorias = append(victorias, rival)
+	}
+	return victorias
+}
+
+// coloresValidos deja solo códigos WUBRG, sin repetidos
+func coloresValidos(valores []string) []string {
+	vistos := map[string]bool{}
+	var colores []string
+	for _, c := range valores {
+		if !strings.Contains("WUBRG", c) || len(c) != 1 || vistos[c] {
+			continue
+		}
+		vistos[c] = true
+		colores = append(colores, c)
+	}
+	return colores
 }
 
 // victoriaCruzada busca una pareja de jugadores de la sesión que se haya ganado
@@ -476,9 +535,7 @@ func (a *AppHandlers) AdminCrearJugador(w http.ResponseWriter, r *http.Request) 
 	if color == "" {
 		color = "#6c757d"
 	}
-	if avatar == "" {
-		avatar = "ms-planeswalker"
-	}
+	avatar = models.NormalizarAvatar(avatar)
 
 	if err := db.CrearJugador(a.DB, nombre, color, avatar); err != nil {
 		log.Println("Error al crear jugador:", err)
@@ -552,6 +609,8 @@ func (a *AppHandlers) AdminActualizarJugador(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "El nombre es obligatorio", http.StatusBadRequest)
 		return
 	}
+
+	avatar = models.NormalizarAvatar(avatar)
 
 	if err := db.ActualizarJugador(a.DB, id, nombre, color, avatar); err != nil {
 		http.Error(w, "Error al actualizar jugador", http.StatusInternalServerError)

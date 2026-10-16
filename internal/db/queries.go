@@ -356,55 +356,58 @@ func Ping(db *sql.DB) error {
 
 // ========== RESULTADOS ==========
 
-// GuardarResultadoSesion guarda el resultado completo de un jugador en una sesión.
-// Usa una transacción para asegurar consistencia.
-func GuardarResultadoSesion(db *sql.DB, sesionID, jugadorID int, victorias, derrotas []int, colores []string, notas string) error {
+// ResultadoJugador es lo que se guarda de un jugador en una sesión
+type ResultadoJugador struct {
+	JugadorID int
+	Victorias []int // IDs de rivales vencidos
+	Colores   []string
+	Notas     string
+}
+
+// GuardarResultadosSesion guarda TODA la sesión en una única transacción: la descripción
+// y el modo, el borrado de los jugadores que ya no participan y el resultado de cada
+// participante. Si algo falla no se guarda nada, así nunca quedan sesiones a medias.
+// Las victorias y colores deben venir ya validados (ver handlers.AdminGuardarResultados).
+func GuardarResultadosSesion(db *sql.DB, sesionID int, descripcion string, enfrentamientoUnico bool, resultados []ResultadoJugador) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// Eliminar resultado previo si existe (para re-edición)
-	// Las tablas hijas se borran en cascada gracias a ON DELETE CASCADE
-	var resultadoID int
-	err = tx.QueryRow(`SELECT id FROM resultados WHERE sesion_id=$1 AND jugador_id=$2`, sesionID, jugadorID).Scan(&resultadoID)
-	if err == nil {
-		_, err = tx.Exec(`DELETE FROM resultados WHERE id=$1`, resultadoID)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Insertar resultado principal con RETURNING id
-	var nuevoID int64
-	err = tx.QueryRow(
-		`INSERT INTO resultados (sesion_id, jugador_id, notas) VALUES ($1, $2, $3) RETURNING id`,
-		sesionID, jugadorID, notas,
-	).Scan(&nuevoID)
+	res, err := tx.Exec(`UPDATE sesiones SET descripcion=$1, enfrentamiento_unico=$2 WHERE id=$3`,
+		descripcion, enfrentamientoUnico, sesionID)
 	if err != nil {
 		return err
 	}
-
-	// Insertar victorias
-	for _, rivalID := range victorias {
-		if rivalID == 0 {
-			continue
-		}
-		_, err = tx.Exec(`INSERT INTO victorias (resultado_id, rival_id) VALUES ($1, $2)`, nuevoID, rivalID)
-		if err != nil {
-			return err
-		}
+	if n, err := res.RowsAffected(); err != nil {
+		return err
+	} else if n == 0 {
+		return sql.ErrNoRows
 	}
 
-	// Insertar colores jugados
-	for _, color := range colores {
-		if color == "" {
-			continue
-		}
-		_, err = tx.Exec(`INSERT INTO colores_jugados (resultado_id, color) VALUES ($1, $2)`, nuevoID, color)
-		if err != nil {
+	// Se rehace la sesión entera: las tablas hijas (victorias, colores) caen en cascada
+	if _, err := tx.Exec(`DELETE FROM resultados WHERE sesion_id=$1`, sesionID); err != nil {
+		return err
+	}
+
+	for _, r := range resultados {
+		var resultadoID int64
+		if err := tx.QueryRow(
+			`INSERT INTO resultados (sesion_id, jugador_id, notas) VALUES ($1, $2, $3) RETURNING id`,
+			sesionID, r.JugadorID, r.Notas,
+		).Scan(&resultadoID); err != nil {
 			return err
+		}
+		for _, rivalID := range r.Victorias {
+			if _, err := tx.Exec(`INSERT INTO victorias (resultado_id, rival_id) VALUES ($1, $2)`, resultadoID, rivalID); err != nil {
+				return err
+			}
+		}
+		for _, color := range r.Colores {
+			if _, err := tx.Exec(`INSERT INTO colores_jugados (resultado_id, color) VALUES ($1, $2)`, resultadoID, color); err != nil {
+				return err
+			}
 		}
 	}
 

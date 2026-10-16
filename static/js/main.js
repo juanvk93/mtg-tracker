@@ -296,10 +296,56 @@ function initMatrizResultados() {
   if (btn && detallada) {
     btn.addEventListener('click', function() {
       const mostrarMatriz = form.style.display === 'none';
+      // Los dos formularios envían a la misma URL: antes de cambiar se copia lo editado
+      // en la vista visible a la otra, para no guardar después datos antiguos
+      if (mostrarMatriz) copiarDetalladaAMatriz(detallada, form);
+      else copiarMatrizADetallada(form, detallada);
       form.style.display = mostrarMatriz ? 'block' : 'none';
       detallada.style.display = mostrarMatriz ? 'none' : 'block';
       btn.textContent = mostrarMatriz ? '📝 Vista detallada' : '⚡ Vista rápida (matriz)';
       if (mostrarMatriz) refrescar();
     });
   }
+}
+
+// Copia el estado (marcado y clase visual) de las casillas victoria_*/color_* y las
+// notas de un formulario al otro. Las casillas se emparejan por name + value.
+function copiarCampos(origen, destino) {
+  destino.querySelectorAll('input[type="checkbox"][name^="victoria_"], input[type="checkbox"][name^="color_"]').forEach(function(inp) {
+    const par = origen.querySelector('input[name="' + inp.name + '"][value="' + inp.value + '"]');
+    inp.checked = !!(par && par.checked);
+    const label = inp.closest('.checkbox-label, .mana-checkbox');
+    if (label) label.classList.toggle('checked', inp.checked);
+  });
+  destino.querySelectorAll('input[type="text"][name^="notas_"]').forEach(function(inp) {
+    const par = origen.querySelector('input[name="' + inp.name + '"]');
+    if (par) inp.value = par.value;
+  });
+}
+
+function copiarDetalladaAMatriz(detallada, matriz) {
+  const ids = document.getElementById('jugadores-sesion-ids').value.split(',').filter(Boolean);
+  matriz.querySelectorAll('.matriz-juega').forEach(function(cb) {
+    cb.checked = ids.indexOf(cb.dataset.jug) !== -1;
+  });
+  copiarCampos(detallada, matriz);
+  const desc = detallada.querySelector('[name="descripcion"]');
+  const descMatriz = matriz.querySelector('[name="descripcion"]');
+  if (desc && descMatriz) descMatriz.value = desc.value;
+}
+
+function copiarMatrizADetallada(matriz, detallada) {
+  const actuales = document.getElementById('jugadores-sesion-ids').value.split(',').filter(Boolean);
+  // Igualar quién juega sin que cada cambio desmarque victorias a mitad de la copia
+  const original = window.actualizarRivalesVisibles;
+  window.actualizarRivalesVisibles = function() {};
+  matriz.querySelectorAll('.matriz-juega').forEach(function(cb) {
+    const btn = document.getElementById('btn-jug-' + cb.dataset.jug);
+    if (btn && cb.checked !== (actuales.indexOf(cb.dataset.jug) !== -1)) {
+      toggleJugadorSesion(parseInt(cb.dataset.jug, 10), btn);
+    }
+  });
+  window.actualizarRivalesVisibles = original;
+  copiarCampos(matriz, detallada);
+  actualizarRivalesVisibles();
 }

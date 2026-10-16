@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.11.0"
+const Version = "1.12.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,18 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.12.0",
+			Fecha:   "2026-10-16",
+			Cambios: []string{
+				"Backup completo: ahora incluye las notas/arquetipos de cada resultado y qué jugadores están inactivos",
+				"Importar ya no deja dos temporadas activas ni fusiona dos drafts del mismo día en uno",
+				"Guardar resultados es todo o nada: si algo falla no se guarda nada y se avisa (antes podía quedar la sesión a medias)",
+				"El servidor descarta victorias imposibles (contra uno mismo, contra quien no jugó o repetidas) y colores no válidos",
+				"La vista detallada y la matriz de resultados se sincronizan al cambiar de una a otra: ya no se pierde lo editado",
+				"Seguridad: avatares validados y escapados, cookie de admin más segura y rechazo de peticiones de admin enviadas desde otras webs",
+			},
+		},
 		{
 			Version: "1.11.0",
 			Fecha:   "2026-10-16",

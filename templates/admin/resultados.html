@@ -30,9 +30,16 @@
 
   <!-- Descripción editable -->
   <div class="card mb-3">
-    <div class="form-group" style="margin-bottom:0">
+    <div class="form-group">
       <label class="form-label">Descripción de la sesión</label>
       <input type="text" name="descripcion" class="form-input" value="{{.Sesion.Descripcion}}" placeholder="Draft Mayo, Commander, Sealed…">
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+        <label class="check-modo">
+          <input type="checkbox" name="enfrentamiento_unico" class="modo-unico" data-form="form-resultados"{{if .Sesion.EnfrentamientoUnico}} checked{{end}}>
+          <span><strong>Cada pareja se enfrenta una sola vez</strong><br>
+          <span class="text-xs text-muted">Si A gana a B, ya no se podrá marcar que B ganó a A.</span></span>
+        </label>
     </div>
   </div>
 
@@ -101,6 +108,13 @@
 <form method="POST" action="/admin/sesion/{{.Sesion.ID}}/resultados" id="form-matriz" style="display:none">
   <input type="hidden" name="jugadores_sesion" id="matriz-jugadores" value="">
   <input type="hidden" name="descripcion" value="{{.Sesion.Descripcion}}">
+  <div class="card mb-3">
+        <label class="check-modo">
+          <input type="checkbox" name="enfrentamiento_unico" class="modo-unico" data-form="form-matriz"{{if .Sesion.EnfrentamientoUnico}} checked{{end}}>
+          <span><strong>Cada pareja se enfrenta una sola vez</strong><br>
+          <span class="text-xs text-muted">Si A gana a B, ya no se podrá marcar que B ganó a A.</span></span>
+        </label>
+  </div>
   <div class="card" style="padding:0">
     <div class="matriz-wrap">
       <table class="matriz-table">

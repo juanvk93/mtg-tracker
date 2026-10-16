@@ -392,3 +392,18 @@ func (a *AppHandlers) renderizar(w http.ResponseWriter, tmpl string, datos inter
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(buf.String()))
 }
+
+// Dado muestra el dado de 20 caras (tirada en el navegador)
+func (a *AppHandlers) Dado(w http.ResponseWriter, r *http.Request) {
+	a.renderizar(w, "dado.html", nil)
+}
+
+// Healthz responde OK si la BD contesta. Lo usa el keep-alive (y sirve como health check).
+func (a *AppHandlers) Healthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if err := db.Ping(a.DB); err != nil {
+		http.Error(w, "db error", http.StatusServiceUnavailable)
+		return
+	}
+	w.Write([]byte("ok"))
+}

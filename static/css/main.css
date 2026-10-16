@@ -1090,3 +1090,100 @@ hr.divider {
 .tv-empty { text-align: center; font-size: 4vw; color: var(--text-faint); padding: 20vh 0; }
 .tv-foot { display: flex; justify-content: space-between; margin-top: 3vh; font-size: clamp(11px, 1.4vw, 16px); color: var(--text-faint); }
 .tv-salir { color: var(--text-faint); text-decoration: none; }
+
+/* === MENÚ DESPLEGABLE DEL NAV (Extras) === */
+.nav-menu { position: relative; margin-left: auto; }
+.nav-menu + .nav-admin { margin-left: 0; }
+.nav-menu-btn {
+  list-style: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-faint);
+  padding: 5px 12px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  user-select: none;
+  transition: border-color 0.1s, color 0.1s;
+}
+.nav-menu-btn::-webkit-details-marker { display: none; }
+.nav-menu-btn:hover,
+.nav-menu[open] .nav-menu-btn { color: var(--text); border-color: var(--border-hover); }
+.nav-menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 170px;
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-hover);
+  padding: 4px;
+  z-index: 200;
+}
+.nav-menu-list a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+}
+.nav-menu-list a:hover { background: var(--bg-surface); }
+
+/* === DADO === */
+.dado-main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: calc(100vh - 52px);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+.dado-caras { display: flex; gap: 6px; margin-bottom: 1.5rem; cursor: default; }
+.dado-cara-btn {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 7px 16px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.dado-cara-btn.activo { border-color: var(--brand); color: var(--brand); background: var(--brand-bg); }
+.dado-zona { display: flex; flex-direction: column; align-items: center; flex: 1; justify-content: center; }
+.dado-svg { width: min(70vw, 300px); height: auto; overflow: visible; transition: transform 0.2s; }
+.dado-cuerpo { fill: var(--bg-card); stroke: var(--brand); stroke-width: 2; stroke-linejoin: round; filter: drop-shadow(0 6px 18px var(--brand-glow)); }
+.dado-arista { fill: none; stroke: var(--brand); stroke-width: 1; opacity: 0.45; stroke-linejoin: round; }
+#dado-num { font-family: var(--font-display); font-weight: 700; font-size: 24px; fill: var(--text); }
+.dado-svg.rodando { animation: dado-rodar 0.5s linear infinite; }
+.dado-svg.critico .dado-cuerpo { stroke: var(--oro); fill: color-mix(in srgb, var(--oro) 14%, var(--bg-card)); }
+.dado-svg.critico #dado-num { fill: var(--oro); }
+.dado-svg.pifia .dado-cuerpo { stroke: #c0392b; fill: color-mix(in srgb, #c0392b 12%, var(--bg-card)); }
+.dado-svg.pifia #dado-num { fill: #c0392b; }
+@keyframes dado-rodar { from { transform: rotate(0deg) scale(0.92); } to { transform: rotate(360deg) scale(0.92); } }
+.dado-msg { margin-top: 1rem; color: var(--text-muted); font-size: 14px; min-height: 1.5em; }
+.dado-acciones { margin: 1.5rem 0 0.75rem; }
+.dado-tirar { font-size: 16px; letter-spacing: 2px; padding: 12px 42px; font-weight: 700; }
+.dado-historial { color: var(--text-faint); font-size: 12px; text-align: center; min-height: 1.5em; }
+@media (prefers-reduced-motion: reduce) { .dado-svg.rodando { animation: none; } }
+
+/* === MODO ENFRENTAMIENTO ÚNICO === */
+.check-modo { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; font-size: 13px; line-height: 1.4; }
+.check-modo input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--brand); flex-shrink: 0; }
+.checkbox-label.bloqueado {
+  border-color: rgba(192,57,43,0.55);
+  background: rgba(192,57,43,0.10);
+  color: #c0392b;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+.checkbox-label.conflicto { border-color: #c0392b; background: rgba(192,57,43,0.16); color: #c0392b; }
+.matriz-table td.bloqueado { background: rgba(192,57,43,0.14); }
+.matriz-table td.bloqueado .matriz-vict { cursor: not-allowed; accent-color: #c0392b; }
+.matriz-table td.conflicto { background: rgba(192,57,43,0.24); }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -258,8 +259,9 @@ func (a *AppHandlers) AdminCrearSesion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	descripcion := r.FormValue("descripcion")
+	enfrentamientoUnico := r.FormValue("enfrentamiento_unico") == "on"
 
-	sesionID, err := db.CrearSesion(a.DB, temporadaID, fecha, descripcion)
+	sesionID, err := db.CrearSesion(a.DB, temporadaID, fecha, descripcion, enfrentamientoUnico)
 	if err != nil {
 		log.Println("Error al crear sesión:", err)
 		http.Error(w, "Error al crear sesión", http.StatusInternalServerError)
@@ -365,13 +367,10 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Actualizar descripción de la sesión si cambió
-	descripcion := r.FormValue("descripcion")
-	db.ActualizarDescripcionSesion(a.DB, sesionID, descripcion)
-
 	// Obtener los jugadores seleccionados para esta sesión
 	jugadoresStr := r.FormValue("jugadores_sesion")
 	if jugadoresStr == "" {
+		db.ActualizarDescripcionSesion(a.DB, sesionID, r.FormValue("descripcion"), r.FormValue("enfrentamiento_unico") == "on")
 		http.Redirect(w, r, fmt.Sprintf("/admin/sesion/%d/resultados", sesionID), http.StatusFound)
 		return
 	}
@@ -386,6 +385,23 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 			jugadoresNuevos[jugID] = true
 		}
 	}
+
+	// En modo "cada pareja se enfrenta una vez" no puede haber victorias cruzadas
+	// (A venció a B y B venció a A). El JS ya lo impide; esto es la red de seguridad.
+	// Se valida ANTES de escribir nada, para que un envío rechazado no deje cambios a medias.
+	descripcion := r.FormValue("descripcion")
+	enfrentamientoUnico := r.FormValue("enfrentamiento_unico") == "on"
+	if enfrentamientoUnico {
+		if a1, a2, ok := victoriaCruzada(r.Form, jugadoresNuevos); ok {
+			j1, _ := db.ObtenerJugador(a.DB, a1)
+			j2, _ := db.ObtenerJugador(a.DB, a2)
+			http.Error(w, fmt.Sprintf("Cada pareja se enfrenta una sola vez: %s y %s no pueden haberse ganado mutuamente. Vuelve atrás y corrige el formulario.", j1.Nombre, j2.Nombre), http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Actualizar descripción y modo de enfrentamiento de la sesión
+	db.ActualizarDescripcionSesion(a.DB, sesionID, descripcion, enfrentamientoUnico)
 
 	// Borrar solo los resultados de jugadores que YA NO están en la sesión
 	// (los que sí están se actualizarán individualmente en GuardarResultadoSesion)
@@ -419,6 +435,25 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/sesion/%d", sesionID), http.StatusFound)
+}
+
+// victoriaCruzada busca una pareja de jugadores de la sesión que se haya ganado
+// mutuamente en el formulario (victoria_A contiene B y victoria_B contiene A).
+func victoriaCruzada(form url.Values, jugadores map[int]bool) (int, int, bool) {
+	gano := map[[2]int]bool{}
+	for jugID := range jugadores {
+		for _, vs := range form[fmt.Sprintf("victoria_%d", jugID)] {
+			if rival, err := strconv.Atoi(vs); err == nil && jugadores[rival] {
+				gano[[2]int{jugID, rival}] = true
+			}
+		}
+	}
+	for par := range gano {
+		if par[0] < par[1] && gano[[2]int{par[1], par[0]}] {
+			return par[0], par[1], true
+		}
+	}
+	return 0, 0, false
 }
 
 // ========== JUGADORES ==========

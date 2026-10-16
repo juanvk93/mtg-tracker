@@ -3,6 +3,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"html/template"
 	"log"
@@ -58,6 +59,8 @@ func main() {
 	mux.HandleFunc("GET /tv", h.ModoTV)
 	mux.HandleFunc("GET /changelog", h.Changelog)
 	mux.HandleFunc("GET /temporada/{id}/resumen", h.ResumenTemporada)
+	mux.HandleFunc("GET /dado", h.Dado)
+	mux.HandleFunc("GET /healthz", h.Healthz)
 
 	// ========== RUTAS DE ADMINISTRACIÓN ==========
 	mux.HandleFunc("GET /admin/login", h.AdminLogin)
@@ -92,11 +95,45 @@ func main() {
 	mux.HandleFunc("GET /admin/importar", handlers.MiddlewareAdmin(h.AdminImportarJSONForm))
 	mux.HandleFunc("POST /admin/importar", handlers.MiddlewareAdmin(h.AdminImportarJSON))
 
+	// Keep-alive: evita que Render duerma el servicio y que Supabase pause la BD
+	go keepAlive(database)
+
 	// Iniciar servidor
 	addr := ":" + puerto
 	log.Printf("🃏 MTG Tracker iniciado en http://localhost%s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal("Error al iniciar el servidor:", err)
+	}
+}
+
+// intervaloKeepAlive: muy por debajo de los 15 min de inactividad tras los que Render
+// (plan free) duerme el servicio.
+const intervaloKeepAlive = 2 * time.Minute
+
+// keepAlive genera actividad periódica mientras el servidor está levantado:
+//   - Lanza una consulta ligera a la BD para que Supabase no pause el proyecto.
+//   - Si existe RENDER_EXTERNAL_URL (Render la define sola), se hace una petición a
+//     /healthz a través de la URL pública: cuenta como tráfico entrante y Render no
+//     duerme el servicio. Una llamada a localhost NO serviría, no pasa por su proxy.
+func keepAlive(database *sql.DB) {
+	urlPublica := strings.TrimRight(os.Getenv("RENDER_EXTERNAL_URL"), "/")
+	cliente := &http.Client{Timeout: 30 * time.Second}
+
+	ticker := time.NewTicker(intervaloKeepAlive)
+	defer ticker.Stop()
+	for range ticker.C {
+		if err := db.Ping(database); err != nil {
+			log.Println("keep-alive: error en la consulta a la BD:", err)
+		}
+		if urlPublica == "" {
+			continue
+		}
+		resp, err := cliente.Get(urlPublica + "/healthz")
+		if err != nil {
+			log.Println("keep-alive: error al llamar a /healthz:", err)
+			continue
+		}
+		resp.Body.Close()
 	}
 }
 

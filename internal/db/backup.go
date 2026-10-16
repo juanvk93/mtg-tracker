@@ -37,10 +37,11 @@ type BackupTemporada struct {
 
 // BackupSesion representa una sesión en el backup
 type BackupSesion struct {
-	ID          int    `json:"id"`
-	TemporadaID int    `json:"temporada_id"`
-	Fecha       string `json:"fecha"` // "2006-01-02"
-	Descripcion string `json:"descripcion"`
+	ID                  int    `json:"id"`
+	TemporadaID         int    `json:"temporada_id"`
+	Fecha               string `json:"fecha"` // "2006-01-02"
+	Descripcion         string `json:"descripcion"`
+	EnfrentamientoUnico bool   `json:"enfrentamiento_unico,omitempty"`
 }
 
 // BackupResultado representa el resultado completo de un jugador en una sesión
@@ -100,7 +101,7 @@ func ExportarBackup(db *sql.DB) ([]byte, error) {
 
 	// Sesiones
 	if err := func() error {
-		rows, err := db.Query(`SELECT id, temporada_id, fecha, descripcion FROM sesiones ORDER BY id`)
+		rows, err := db.Query(`SELECT id, temporada_id, fecha, descripcion, enfrentamiento_unico FROM sesiones ORDER BY id`)
 		if err != nil {
 			return fmt.Errorf("exportar sesiones: %w", err)
 		}
@@ -108,7 +109,7 @@ func ExportarBackup(db *sql.DB) ([]byte, error) {
 		for rows.Next() {
 			var s BackupSesion
 			var fecha time.Time
-			if err := rows.Scan(&s.ID, &s.TemporadaID, &fecha, &s.Descripcion); err != nil {
+			if err := rows.Scan(&s.ID, &s.TemporadaID, &fecha, &s.Descripcion, &s.EnfrentamientoUnico); err != nil {
 				return err
 			}
 			s.Fecha = fecha.Format("2006-01-02")
@@ -319,8 +320,8 @@ func ImportarBackup(db *sql.DB, data []byte) (*ResultadoImport, error) {
 
 		if err == sql.ErrNoRows {
 			err = tx.QueryRow(
-				`INSERT INTO sesiones (temporada_id, fecha, descripcion) VALUES ($1, $2, $3) RETURNING id`,
-				nuevaTemporadaID, s.Fecha, s.Descripcion,
+				`INSERT INTO sesiones (temporada_id, fecha, descripcion, enfrentamiento_unico) VALUES ($1, $2, $3, $4) RETURNING id`,
+				nuevaTemporadaID, s.Fecha, s.Descripcion, s.EnfrentamientoUnico,
 			).Scan(&idExistente)
 			if err != nil {
 				return nil, fmt.Errorf("insertar sesión %s: %w", s.Fecha, err)

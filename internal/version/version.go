@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.9.3"
+const Version = "1.10.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,15 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.10.0",
+			Fecha:   "2026-10-16",
+			Cambios: []string{
+				"Nuevo menú 'Extras' en la barra superior con un dado (d6, d12 o d20; por defecto d20): se tira tocando la pantalla o con el botón TIRAR",
+				"Nueva opción por sesión 'Cada pareja se enfrenta una sola vez': si A gana a B, la casilla 'B ganó a A' queda bloqueada en rojo (también en la vista de matriz) y el servidor rechaza victorias cruzadas",
+				"Keep-alive: cada 2 minutos la app lanza una consulta ligera a la BD y se llama a sí misma por su URL pública, para que ni Render duerma el servicio ni Supabase pause el proyecto",
+			},
+		},
 		{
 			Version: "1.9.3",
 			Fecha:   "2026-07-13",

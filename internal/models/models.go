@@ -21,6 +21,9 @@ type Sesion struct {
 	TemporadaID int
 	Fecha       time.Time
 	Descripcion string
+	// EnfrentamientoUnico: cada pareja de jugadores se enfrenta una sola vez en la sesión,
+	// así que si A venció a B, B no puede figurar como vencedor de A.
+	EnfrentamientoUnico bool
 }
 
 // Jugador representa un participante del grupo

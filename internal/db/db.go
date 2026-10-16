@@ -87,6 +87,7 @@ func aplicarEsquema(db *sql.DB) error {
 		// Migraciones idempotentes de columnas añadidas después (pgx admite ADD COLUMN IF NOT EXISTS)
 		`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS activo BOOLEAN NOT NULL DEFAULT true`,
 		`ALTER TABLE resultados ADD COLUMN IF NOT EXISTS notas TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sesiones ADD COLUMN IF NOT EXISTS enfrentamiento_unico BOOLEAN NOT NULL DEFAULT false`,
 		`CREATE INDEX IF NOT EXISTS idx_sesiones_temporada ON sesiones(temporada_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_resultados_sesion ON resultados(sesion_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_resultados_jugador ON resultados(jugador_id)`,

@@ -1,0 +1,130 @@
+{{define "dado.html"}}<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dado — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  {{template "head" .}}
+</head>
+<body>
+{{template "nav" .}}
+<main class="main dado-main">
+
+<div class="dado-caras" role="radiogroup" aria-label="Número de caras">
+  <button type="button" class="dado-cara-btn" data-caras="6" role="radio">d6</button>
+  <button type="button" class="dado-cara-btn" data-caras="12" role="radio">d12</button>
+  <button type="button" class="dado-cara-btn" data-caras="20" role="radio">d20</button>
+</div>
+
+<div id="dado-zona" class="dado-zona" aria-live="polite">
+  <svg id="dado-svg" class="dado-svg" viewBox="0 0 100 100" aria-hidden="true">
+    <g id="dado-forma"></g>
+    <text id="dado-num" x="50" y="56" text-anchor="middle" dominant-baseline="middle">20</text>
+  </svg>
+  <div id="dado-msg" class="dado-msg">Toca la pantalla para tirar</div>
+</div>
+
+<div class="dado-acciones">
+  <button type="button" id="dado-tirar" class="btn btn-primary dado-tirar">TIRAR</button>
+</div>
+
+<div id="dado-historial" class="dado-historial"></div>
+
+</main>
+<script src="/static/js/main.js"></script>
+<script>
+(function () {
+  // Formas de cada dado (polígono exterior + líneas de las aristas) y posición del número
+  var FORMAS = {
+    6:  { poly: '14,14 86,14 86,86 14,86', lineas: [], y: 52 },
+    12: { poly: '50,6 92,37 76,88 24,88 8,37',
+          lineas: ['50,24 74,42 65,70 35,70 26,42 50,24', '50,6 50,24', '92,37 74,42', '76,88 65,70', '24,88 35,70', '8,37 26,42'], y: 50 },
+    20: { poly: '50,4 90,27 90,73 50,96 10,73 10,27',
+          lineas: ['50,22 79,70 21,70 50,22', '50,4 50,22', '90,27 50,22', '90,27 79,70', '90,73 79,70', '50,96 79,70', '50,96 21,70', '10,73 21,70', '10,27 21,70', '10,27 50,22'], y: 56 }
+  };
+
+  var caras = 20;
+  try { var g = parseInt(localStorage.getItem('dadoCaras'), 10); if (FORMAS[g]) caras = g; } catch (e) {}
+
+  var forma = document.getElementById('dado-forma');
+  var num = document.getElementById('dado-num');
+  var svg = document.getElementById('dado-svg');
+  var msg = document.getElementById('dado-msg');
+  var hist = document.getElementById('dado-historial');
+  var tirando = false;
+  var historial = [];
+
+  function dibujar() {
+    var f = FORMAS[caras];
+    var html = '<polygon class="dado-cuerpo" points="' + f.poly + '"/>';
+    f.lineas.forEach(function (l) { html += '<polyline class="dado-arista" points="' + l + '"/>'; });
+    forma.innerHTML = html;
+    num.setAttribute('y', f.y);
+    num.textContent = caras;
+    document.querySelectorAll('.dado-cara-btn').forEach(function (b) {
+      var sel = parseInt(b.dataset.caras, 10) === caras;
+      b.classList.toggle('activo', sel);
+      b.setAttribute('aria-checked', sel);
+    });
+    svg.classList.remove('critico', 'pifia');
+    msg.textContent = 'Toca la pantalla para tirar';
+  }
+
+  // Número aleatorio uniforme 1..n con crypto (rechazo para evitar sesgo)
+  function aleatorio(n) {
+    if (window.crypto && crypto.getRandomValues) {
+      var buf = new Uint32Array(1), limite = Math.floor(4294967296 / n) * n;
+      do { crypto.getRandomValues(buf); } while (buf[0] >= limite);
+      return (buf[0] % n) + 1;
+    }
+    return Math.floor(Math.random() * n) + 1;
+  }
+
+  function tirar() {
+    if (tirando) return;
+    tirando = true;
+    var resultado = aleatorio(caras);
+    svg.classList.remove('critico', 'pifia');
+    svg.classList.add('rodando');
+    msg.textContent = '…';
+    var pasos = 0;
+    var timer = setInterval(function () {
+      num.textContent = aleatorio(caras);
+      if (++pasos >= 10) {
+        clearInterval(timer);
+        num.textContent = resultado;
+        svg.classList.remove('rodando');
+        if (resultado === caras) { svg.classList.add('critico'); msg.textContent = '¡Máximo!'; }
+        else if (resultado === 1) { svg.classList.add('pifia'); msg.textContent = 'Pifia…'; }
+        else msg.textContent = 'd' + caras;
+        historial.unshift('d' + caras + ': ' + resultado);
+        historial = historial.slice(0, 10);
+        hist.textContent = historial.length > 1 ? 'Últimas: ' + historial.slice(1).join(' · ') : '';
+        if (navigator.vibrate) navigator.vibrate(30);
+        tirando = false;
+      }
+    }, 50);
+  }
+
+  // Tap en cualquier parte de la pantalla (salvo nav y controles) o botón TIRAR
+  document.addEventListener('click', function (e) {
+    if (e.target.closest('nav, a, .dado-caras, details')) return;
+    tirar();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' && !e.target.closest('button, input, select')) { e.preventDefault(); tirar(); }
+  });
+  document.querySelectorAll('.dado-cara-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      caras = parseInt(b.dataset.caras, 10);
+      try { localStorage.setItem('dadoCaras', caras); } catch (e) {}
+      dibujar();
+    });
+  });
+
+  dibujar();
+})();
+</script>
+</body>
+</html>{{end}}

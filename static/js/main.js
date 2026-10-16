@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Tablas ordenables (ranking) y modo matriz de resultados
   initSortableTables();
   initMatrizResultados();
+  initEnfrentamientoUnico();
+  initNavMenu();
 
   // Checkboxes personalizados (colores maná y rivales)
   document.querySelectorAll('.mana-checkbox, .checkbox-label').forEach(label => {
@@ -117,6 +119,70 @@ function actualizarRivalesVisibles() {
       }
     }
   });
+
+  marcarEnfrentamientoUnicoDetallado();
+}
+
+// === MODO "CADA PAREJA SE ENFRENTA UNA VEZ" ===
+// Si A venció a B, la casilla "B ganó a A" queda bloqueada (en rojo). Si ya venían
+// marcadas las dos (datos antiguos), ambas se señalan como conflicto para corregirlas.
+function modoUnicoActivo(formId) {
+  const cb = document.querySelector('.modo-unico[data-form="' + formId + '"]');
+  return !!(cb && cb.checked);
+}
+
+// Aplica el estado bloqueado/conflicto a un input según su victoria inversa
+function aplicarBloqueoInverso(input, inverso, activo, marcador) {
+  const inversoMarcado = !!(inverso && inverso.checked);
+  const bloqueado = activo && inversoMarcado && !input.checked;
+  const conflicto = activo && inversoMarcado && input.checked;
+  if (bloqueado) input.disabled = true;
+  marcador.classList.toggle('bloqueado', bloqueado);
+  marcador.classList.toggle('conflicto', conflicto);
+  marcador.title = bloqueado ? 'Ya perdió contra este jugador: solo se enfrentan una vez'
+    : conflicto ? 'Conflicto: los dos aparecen ganándose mutuamente' : marcador.dataset.titulo || '';
+}
+
+function marcarEnfrentamientoUnicoDetallado() {
+  const form = document.getElementById('form-resultados');
+  if (!form) return;
+  const activo = modoUnicoActivo('form-resultados');
+  form.querySelectorAll('input[type="checkbox"][name^="victoria_"]').forEach(function(input) {
+    const label = input.closest('.checkbox-label');
+    if (!label) return;
+    const jugID = input.name.slice('victoria_'.length);
+    const inverso = form.querySelector('input[name="victoria_' + input.value + '"][value="' + jugID + '"]');
+    input.disabled = false;
+    aplicarBloqueoInverso(input, inverso, activo, label);
+  });
+}
+
+function initEnfrentamientoUnico() {
+  const form = document.getElementById('form-resultados');
+  if (!form) return;
+  form.addEventListener('change', function(e) {
+    if (e.target.name && e.target.name.indexOf('victoria_') === 0) marcarEnfrentamientoUnicoDetallado();
+  });
+  // Los dos formularios (detallado y matriz) tienen su propio check: se mantienen sincronizados
+  const checks = document.querySelectorAll('.modo-unico');
+  checks.forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      checks.forEach(function(otro) { otro.checked = cb.checked; });
+      marcarEnfrentamientoUnicoDetallado();
+      const matriz = document.getElementById('form-matriz');
+      if (matriz) matriz.dispatchEvent(new Event('change'));
+    });
+  });
+}
+
+// === MENÚ DESPLEGABLE DEL NAV ===
+// Cierra el <details> al pulsar fuera de él
+function initNavMenu() {
+  document.addEventListener('click', function(e) {
+    document.querySelectorAll('details.nav-menu[open]').forEach(function(menu) {
+      if (!menu.contains(e.target)) menu.removeAttribute('open');
+    });
+  });
 }
 
 // === TEMA CLARO/OSCURO ===
@@ -197,12 +263,21 @@ function initMatrizResultados() {
       tr.classList.toggle('fila-inactiva', !juega[tr.dataset.jug]);
     });
     // Una victoria solo es válida si juegan tanto la fila como la columna
+    const activo = modoUnicoActivo('form-matriz');
     form.querySelectorAll('.matriz-vict').forEach(function(inp) {
       const rowId = inp.closest('tr').dataset.jug;
       const colId = inp.value;
       const ok = juega[rowId] && juega[colId];
       inp.disabled = !ok;
       if (!ok) inp.checked = false;
+    });
+    // Segunda pasada (ya con todas las casillas actualizadas): bloquear victorias inversas
+    form.querySelectorAll('.matriz-vict').forEach(function(inp) {
+      const rowId = inp.closest('tr').dataset.jug;
+      const inverso = form.querySelector('tr[data-jug="' + inp.value + '"] .matriz-vict[value="' + rowId + '"]');
+      const td = inp.closest('td');
+      if (!td.dataset.titulo) td.dataset.titulo = '';
+      aplicarBloqueoInverso(inp, inverso, activo, td);
     });
     // Colores y notas: habilitados solo si la fila juega
     form.querySelectorAll('.matriz-color-input, .matriz-notas').forEach(function(inp) {
@@ -211,7 +286,8 @@ function initMatrizResultados() {
     });
   }
 
-  juegaBoxes.forEach(function(cb) { cb.addEventListener('change', refrescar); });
+  // Cualquier cambio (quién juega, victorias o el modo de enfrentamiento) recalcula la matriz
+  form.addEventListener('change', refrescar);
   refrescar();
 
   // Alternar entre vista detallada y matriz

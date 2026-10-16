@@ -268,14 +268,14 @@ func ObtenerTodasLasSesiones(db *sql.DB) ([]models.Sesion, error) {
 // ObtenerSesion devuelve una sesión por ID
 func ObtenerSesion(db *sql.DB, id int) (models.Sesion, error) {
 	var s models.Sesion
-	err := db.QueryRow(`SELECT id, temporada_id, fecha, descripcion FROM sesiones WHERE id=$1`, id).
-		Scan(&s.ID, &s.TemporadaID, &s.Fecha, &s.Descripcion)
+	err := db.QueryRow(`SELECT id, temporada_id, fecha, descripcion, enfrentamiento_unico FROM sesiones WHERE id=$1`, id).
+		Scan(&s.ID, &s.TemporadaID, &s.Fecha, &s.Descripcion, &s.EnfrentamientoUnico)
 	return s, err
 }
 
-// ActualizarDescripcionSesion cambia la descripción de una sesión existente
-func ActualizarDescripcionSesion(db *sql.DB, id int, descripcion string) error {
-	_, err := db.Exec(`UPDATE sesiones SET descripcion=$1 WHERE id=$2`, descripcion, id)
+// ActualizarDescripcionSesion cambia la descripción y el modo de enfrentamiento de una sesión existente
+func ActualizarDescripcionSesion(db *sql.DB, id int, descripcion string, enfrentamientoUnico bool) error {
+	_, err := db.Exec(`UPDATE sesiones SET descripcion=$1, enfrentamiento_unico=$2 WHERE id=$3`, descripcion, enfrentamientoUnico, id)
 	return err
 }
 
@@ -335,16 +335,23 @@ func ObtenerGanadorSesion(database *sql.DB, sesionID int) *GanadorSesion {
 }
 
 // CrearSesion inserta una nueva sesión de draft, devuelve el ID generado
-func CrearSesion(db *sql.DB, temporadaID int, fecha time.Time, descripcion string) (int64, error) {
+func CrearSesion(db *sql.DB, temporadaID int, fecha time.Time, descripcion string, enfrentamientoUnico bool) (int64, error) {
 	var id int64
 	err := db.QueryRow(
-		`INSERT INTO sesiones (temporada_id, fecha, descripcion) VALUES ($1, $2, $3) RETURNING id`,
-		temporadaID, fecha.Format("2006-01-02"), descripcion,
+		`INSERT INTO sesiones (temporada_id, fecha, descripcion, enfrentamiento_unico) VALUES ($1, $2, $3, $4) RETURNING id`,
+		temporadaID, fecha.Format("2006-01-02"), descripcion, enfrentamientoUnico,
 	).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
 	return id, nil
+}
+
+// Ping lanza una consulta mínima contra una tabla real. La usa el keep-alive para que
+// Supabase registre actividad y no pause el proyecto por inactividad.
+func Ping(db *sql.DB) error {
+	var n int
+	return db.QueryRow(`SELECT COUNT(*) FROM temporadas`).Scan(&n)
 }
 
 // ========== RESULTADOS ==========

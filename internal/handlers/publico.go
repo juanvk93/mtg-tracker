@@ -398,6 +398,11 @@ func (a *AppHandlers) Dado(w http.ResponseWriter, r *http.Request) {
 	a.renderizar(w, "dado.html", nil)
 }
 
+// Vidas muestra el contador de vidas a pantalla completa para 2 jugadores (todo en el cliente)
+func (a *AppHandlers) Vidas(w http.ResponseWriter, r *http.Request) {
+	a.renderizar(w, "vidas.html", nil)
+}
+
 // Healthz responde OK si la BD contesta. Lo usa el keep-alive (y sirve como health check).
 func (a *AppHandlers) Healthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")

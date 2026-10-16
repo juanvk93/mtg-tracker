@@ -60,6 +60,7 @@ func main() {
 	mux.HandleFunc("GET /changelog", h.Changelog)
 	mux.HandleFunc("GET /temporada/{id}/resumen", h.ResumenTemporada)
 	mux.HandleFunc("GET /dado", h.Dado)
+	mux.HandleFunc("GET /vidas", h.Vidas)
 	mux.HandleFunc("GET /healthz", h.Healthz)
 
 	// ========== RUTAS DE ADMINISTRACIÓN ==========

@@ -1,7 +1,8 @@
 // Service worker mínimo: cachea el shell y sirve network-first (datos frescos online,
 // funciona degradado sin conexión).
-const CACHE = 'mtg-tracker-v1';
-const SHELL = ['/', '/static/css/main.css', '/static/js/main.js', '/static/icon.svg'];
+const CACHE = 'mtg-tracker-v2';
+// /vidas va en el shell para poder llevar las vidas sin conexión
+const SHELL = ['/', '/vidas', '/static/css/main.css', '/static/js/main.js', '/static/icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}));
@@ -20,8 +21,9 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request)
       .then((resp) => {
-        // Guardar una copia de recursos estáticos para uso offline
-        if (e.request.url.includes('/static/')) {
+        // Guardar una copia de recursos estáticos (y del contador de vidas) para uso offline
+        const ruta = new URL(e.request.url).pathname;
+        if (resp.ok && (ruta.startsWith('/static/') || ruta === '/vidas')) {
           const clone = resp.clone();
           caches.open(CACHE).then((c) => c.put(e.request, clone)).catch(() => {});
         }

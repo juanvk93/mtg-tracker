@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.10.0"
+const Version = "1.11.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,15 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.11.0",
+			Fecha:   "2026-10-16",
+			Cambios: []string{
+				"Nuevo contador de vidas para 2 jugadores cara a cara (Extras → Vidas): empieza en 20, un toque suma o resta 1 y mantener pulsado va de 5 en 5",
+				"Muestra el cambio acumulado de cada jugador, se tiñe de rojo al llegar a 0 y se reinicia con doble toque en ⟲",
+				"Mantiene la pantalla encendida mientras está abierto (con indicador de estado), guarda la partida en el móvil y funciona sin conexión",
+			},
+		},
 		{
 			Version: "1.10.0",
 			Fecha:   "2026-10-16",

@@ -1,0 +1,211 @@
+{{define "vidas.html"}}<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Vidas — MTG Draft Tracker</title>
+  <link rel="stylesheet" href="/static/css/main.css">
+  {{/* Sin el partial "head": su script aplicaría el tema guardado y esta página va siempre en oscuro */}}
+  <meta name="theme-color" content="#0c0e12">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon.svg">
+</head>
+<body class="vidas-body">
+<div class="vidas">
+
+  <section class="vidas-jugador vidas-j2" data-jugador="1" aria-label="Jugador 2">
+    <button type="button" class="vidas-zona menos" data-signo="-1" aria-label="Restar vida al jugador 2"><span>−</span></button>
+    <button type="button" class="vidas-zona mas" data-signo="1" aria-label="Sumar vida al jugador 2"><span>+</span></button>
+    <div class="vidas-total" aria-live="polite">20</div>
+    <div class="vidas-delta"></div>
+  </section>
+
+  <div class="vidas-barra">
+    <button type="button" id="vidas-reset" class="vidas-btn" aria-label="Reiniciar a 20 vidas" title="Reiniciar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>
+      </svg>
+    </button>
+    <button type="button" id="vidas-wake" class="vidas-btn vidas-wake" aria-label="Estado de la pantalla" title="Pantalla">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.5" fill="currentColor"/>
+        <g stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>
+        </g>
+        <path class="vidas-wake-tachado" d="M3 21L21 3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <a href="/" class="vidas-btn" aria-label="Salir" title="Salir">✕</a>
+    <div id="vidas-aviso" class="vidas-aviso" role="status"></div>
+  </div>
+
+  <section class="vidas-jugador vidas-j1" data-jugador="0" aria-label="Jugador 1">
+    <button type="button" class="vidas-zona menos" data-signo="-1" aria-label="Restar vida al jugador 1"><span>−</span></button>
+    <button type="button" class="vidas-zona mas" data-signo="1" aria-label="Sumar vida al jugador 1"><span>+</span></button>
+    <div class="vidas-total" aria-live="polite">20</div>
+    <div class="vidas-delta"></div>
+  </section>
+
+</div>
+<script>
+(function () {
+  var VIDA_INICIAL = 20;
+  var RETARDO_MANTENER = 500;   // ms pulsado hasta que cuenta de 5 en 5
+  var REPETICION = 600;         // ms entre cada ±5 mientras se mantiene
+  var DURACION_DELTA = 1500;    // ms que se ve el cambio acumulado tras el último toque
+
+  var vidas = [VIDA_INICIAL, VIDA_INICIAL];
+  try {
+    var guardadas = JSON.parse(localStorage.getItem('vidas'));
+    if (Array.isArray(guardadas) && guardadas.length === 2 && guardadas.every(Number.isFinite)) vidas = guardadas;
+  } catch (e) {}
+
+  function panel(j) { return document.querySelector('.vidas-jugador[data-jugador="' + j + '"]'); }
+  var acumulado = [0, 0];
+  var timerDelta = [null, null];
+
+  function pintar(j) {
+    panel(j).querySelector('.vidas-total').textContent = String(vidas[j]).replace('-', '−');
+    panel(j).classList.toggle('muerto', vidas[j] <= 0);
+  }
+
+  function guardar() {
+    try { localStorage.setItem('vidas', JSON.stringify(vidas)); } catch (e) {}
+  }
+
+  function cambiar(j, n) {
+    vidas[j] += n;
+    acumulado[j] += n;
+    pintar(j);
+    guardar();
+    var delta = panel(j).querySelector('.vidas-delta');
+    delta.textContent = (acumulado[j] > 0 ? '+' : acumulado[j] < 0 ? '−' : '±') + Math.abs(acumulado[j]);
+    delta.classList.add('visible');
+    clearTimeout(timerDelta[j]);
+    timerDelta[j] = setTimeout(function () {
+      acumulado[j] = 0;
+      delta.classList.remove('visible');
+    }, DURACION_DELTA);
+    if (navigator.vibrate) navigator.vibrate(Math.abs(n) === 5 ? 25 : 8);
+  }
+
+  // Toque = ±1. Mantener pulsado = ±5 a los 500 ms y luego cada 600 ms.
+  // Cada zona lleva su propio estado, así los dos jugadores pueden tocar a la vez.
+  document.querySelectorAll('.vidas-zona').forEach(function (zona) {
+    var j = parseInt(zona.closest('.vidas-jugador').dataset.jugador, 10);
+    var signo = parseInt(zona.dataset.signo, 10);
+    var puntero = null, mantenido = false, tEspera = null, tRepetir = null;
+
+    function limpiar() {
+      clearTimeout(tEspera);
+      clearInterval(tRepetir);
+      zona.classList.remove('pulsada');
+      puntero = null;
+    }
+
+    zona.addEventListener('pointerdown', function (e) {
+      if (puntero !== null) return;
+      e.preventDefault();
+      puntero = e.pointerId;
+      mantenido = false;
+      try { zona.setPointerCapture(e.pointerId); } catch (err) {}
+      zona.classList.add('pulsada');
+      tEspera = setTimeout(function () {
+        mantenido = true;
+        cambiar(j, 5 * signo);
+        tRepetir = setInterval(function () { cambiar(j, 5 * signo); }, REPETICION);
+      }, RETARDO_MANTENER);
+      pedirWakeLock();
+    });
+    zona.addEventListener('pointerup', function (e) {
+      if (e.pointerId !== puntero) return;
+      if (!mantenido) cambiar(j, signo);
+      limpiar();
+    });
+    zona.addEventListener('pointercancel', function (e) {
+      if (e.pointerId === puntero) limpiar();
+    });
+    // Teclado (Enter/Espacio sobre el botón): un clic sin puntero = ±1
+    zona.addEventListener('click', function (e) {
+      if (e.detail === 0) cambiar(j, signo);
+    });
+  });
+
+  // Evita el menú contextual / lupa al mantener pulsado
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+
+  // Reiniciar en dos pasos para no perder una partida por un toque sin querer
+  var btnReset = document.getElementById('vidas-reset');
+  var tReset = null;
+  btnReset.addEventListener('click', function () {
+    if (!btnReset.classList.contains('confirmar')) {
+      btnReset.classList.add('confirmar');
+      avisar('Toca otra vez para volver a 20');
+      tReset = setTimeout(function () { btnReset.classList.remove('confirmar'); }, 3000);
+      return;
+    }
+    clearTimeout(tReset);
+    btnReset.classList.remove('confirmar');
+    vidas = [VIDA_INICIAL, VIDA_INICIAL];
+    acumulado = [0, 0];
+    document.querySelectorAll('.vidas-delta').forEach(function (d) { d.classList.remove('visible'); });
+    pintar(0); pintar(1); guardar();
+    avisar('Partida reiniciada');
+  });
+
+  var aviso = document.getElementById('vidas-aviso');
+  var tAviso = null;
+  function avisar(texto) {
+    aviso.textContent = texto;
+    aviso.classList.add('visible');
+    clearTimeout(tAviso);
+    tAviso = setTimeout(function () { aviso.classList.remove('visible'); }, 2500);
+  }
+
+  // === Pantalla siempre encendida (Screen Wake Lock API) ===
+  // El sistema suelta el bloqueo al cambiar de app o bloquear el móvil, así que se
+  // vuelve a pedir al volver a la página y en cada toque. El icono muestra el estado.
+  var btnWake = document.getElementById('vidas-wake');
+  var bloqueo = null;
+  var estadoWake = 'off';
+
+  function marcarWake(estado) {
+    estadoWake = estado;
+    btnWake.classList.toggle('activo', estado === 'on');
+    btnWake.title = estado === 'on' ? 'La pantalla se mantendrá encendida'
+      : estado === 'nosoporta' ? 'Este navegador no puede mantener la pantalla encendida'
+      : 'La pantalla puede apagarse: toca para reintentar';
+  }
+
+  function pedirWakeLock() {
+    if (!('wakeLock' in navigator)) { marcarWake('nosoporta'); return Promise.resolve(); }
+    if (bloqueo && !bloqueo.released) return Promise.resolve();
+    return navigator.wakeLock.request('screen').then(function (b) {
+      bloqueo = b;
+      marcarWake('on');
+      b.addEventListener('release', function () {
+        // Si se suelta con la página visible (p. ej. ahorro de batería), avisarlo
+        if (document.visibilityState === 'visible') marcarWake('off');
+      });
+    }).catch(function () { marcarWake('off'); });
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') pedirWakeLock();
+  });
+
+  btnWake.addEventListener('click', function () {
+    pedirWakeLock().then(function () {
+      avisar(estadoWake === 'on' ? 'Pantalla siempre encendida ✓'
+        : estadoWake === 'nosoporta' ? 'Este navegador no lo permite: desactiva el bloqueo automático en Ajustes'
+        : 'No se pudo (¿ahorro de batería?): desactiva el bloqueo automático en Ajustes');
+    });
+  });
+
+  pintar(0); pintar(1);
+  pedirWakeLock();
+})();
+</script>
+</body>
+</html>{{end}}

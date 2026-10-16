@@ -49,6 +49,10 @@
     <div class="stat-label">Win rate</div>
   </div>
   <div class="stat-card">
+    <div class="stat-value">{{.Fila.Elo}} <span style="font-size:0.9rem">{{template "eloDelta" .Fila.EloDelta}}</span></div>
+    <div class="stat-label">Elo</div>
+  </div>
+  <div class="stat-card">
     <div class="stat-value" style="font-size:1.3rem">
       {{if eq .Fila.RachaActual 0}}<span class="racha">—</span>
       {{else if eq .Fila.RachaTipo "W"}}<span class="racha win">{{.Fila.RachaActual}}V</span>

@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.14.0"
+const Version = "1.15.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,16 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.15.0",
+			Fecha:   "2026-10-16",
+			Cambios: []string{
+				"Rating Elo por temporada: nueva columna en el ranking, el modo TV y el perfil, con lo que subió o bajó en el último draft (ganar a los de arriba vale más)",
+				"Sesiones: ahora se puede corregir la fecha y borrar una sesión entera (pide la contraseña de admin)",
+				"Contador de vidas: vida inicial de 20, 25 o 30 y contador de veneno (a los 10 la mitad se pone en rojo), en el nuevo panel ⚙",
+				"Contador de vidas: relojes de turno por jugador (⌛), tipo ajedrez, para ver quién tarda más; siguen contando aunque se bloquee el móvil",
+			},
+		},
 		{
 			Version: "1.14.0",
 			Fecha:   "2026-10-16",

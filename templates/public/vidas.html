@@ -17,16 +17,26 @@
   <section class="vidas-jugador vidas-j2" data-jugador="1" aria-label="Jugador 2">
     <button type="button" class="vidas-zona menos" data-signo="-1" aria-label="Restar vida al jugador 2"><span>−</span></button>
     <button type="button" class="vidas-zona mas" data-signo="1" aria-label="Sumar vida al jugador 2"><span>+</span></button>
-    <div class="vidas-total" aria-live="polite">20</div>
     <div class="vidas-delta"></div>
+    <div class="vidas-total" aria-live="polite">20</div>
+    <div class="vidas-extras">
+      <div class="vidas-veneno" aria-label="Veneno del jugador 2">
+        <button type="button" class="vidas-mini" data-veneno="-1" aria-label="Quitar veneno">−</button>
+        <span class="vidas-veneno-valor">☠ <b>0</b></span>
+        <button type="button" class="vidas-mini" data-veneno="1" aria-label="Añadir veneno">+</button>
+      </div>
+      <button type="button" class="vidas-reloj" aria-label="Reloj del jugador 2: toca al acabar tu turno">⌛ <b>0:00</b></button>
+    </div>
   </section>
 
   <div class="vidas-barra">
-    <button type="button" id="vidas-reset" class="vidas-btn" aria-label="Reiniciar a 20 vidas" title="Reiniciar">
+    <button type="button" id="vidas-reset" class="vidas-btn" aria-label="Reiniciar la partida" title="Reiniciar">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>
       </svg>
     </button>
+    <button type="button" id="vidas-crono" class="vidas-btn" aria-label="Relojes de turno" title="Relojes de turno">⌛</button>
+    <button type="button" id="vidas-ajustes" class="vidas-btn" aria-label="Ajustes" title="Ajustes" aria-expanded="false">⚙</button>
     <button type="button" id="vidas-wake" class="vidas-btn vidas-wake" aria-label="Estado de la pantalla" title="Pantalla">
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="4.5" fill="currentColor"/>
@@ -38,44 +48,98 @@
     </button>
     <a href="/" class="vidas-btn" aria-label="Salir" title="Salir">✕</a>
     <div id="vidas-aviso" class="vidas-aviso" role="status"></div>
+
+    <div id="vidas-panel" class="vidas-panel" hidden>
+      <div class="vidas-panel-fila">
+        <span>Vida inicial</span>
+        <div class="vidas-opciones" role="radiogroup" aria-label="Vida inicial">
+          <button type="button" data-vida="20" role="radio">20</button>
+          <button type="button" data-vida="25" role="radio">25</button>
+          <button type="button" data-vida="30" role="radio">30</button>
+        </div>
+      </div>
+      <label class="vidas-panel-fila">
+        <span>Contador de veneno</span>
+        <input type="checkbox" id="vidas-opt-veneno">
+      </label>
+      <label class="vidas-panel-fila">
+        <span>Relojes de turno</span>
+        <input type="checkbox" id="vidas-opt-relojes">
+      </label>
+    </div>
   </div>
 
   <section class="vidas-jugador vidas-j1" data-jugador="0" aria-label="Jugador 1">
     <button type="button" class="vidas-zona menos" data-signo="-1" aria-label="Restar vida al jugador 1"><span>−</span></button>
     <button type="button" class="vidas-zona mas" data-signo="1" aria-label="Sumar vida al jugador 1"><span>+</span></button>
-    <div class="vidas-total" aria-live="polite">20</div>
     <div class="vidas-delta"></div>
+    <div class="vidas-total" aria-live="polite">20</div>
+    <div class="vidas-extras">
+      <div class="vidas-veneno" aria-label="Veneno del jugador 1">
+        <button type="button" class="vidas-mini" data-veneno="-1" aria-label="Quitar veneno">−</button>
+        <span class="vidas-veneno-valor">☠ <b>0</b></span>
+        <button type="button" class="vidas-mini" data-veneno="1" aria-label="Añadir veneno">+</button>
+      </div>
+      <button type="button" class="vidas-reloj" aria-label="Reloj del jugador 1: toca al acabar tu turno">⌛ <b>0:00</b></button>
+    </div>
   </section>
 
 </div>
 <script>
 (function () {
-  var VIDA_INICIAL = 20;
+  var VIDAS_POSIBLES = [20, 25, 30];
+  var VENENO_LETAL = 10;
   var RETARDO_MANTENER = 500;   // ms pulsado hasta que cuenta de 5 en 5
   var REPETICION = 600;         // ms entre cada ±5 mientras se mantiene
   var DURACION_DELTA = 1500;    // ms que se ve el cambio acumulado tras el último toque
 
-  var vidas = [VIDA_INICIAL, VIDA_INICIAL];
+  // === Estado (se guarda en el móvil) ===
+  // Los relojes guardan el tiempo acumulado y la hora en que arrancó el turno en curso,
+  // no un contador: así siguen bien aunque se bloquee el móvil o se recargue la página.
+  function estadoNuevo(vidaInicial, previo) {
+    return {
+      vidaInicial: vidaInicial,
+      vidas: [vidaInicial, vidaInicial],
+      veneno: [0, 0],
+      mostrarVeneno: previo ? previo.mostrarVeneno : false,
+      mostrarRelojes: previo ? previo.mostrarRelojes : false,
+      reloj: { acum: [0, 0], activo: null, desde: null } // desde != null ⇒ corriendo
+    };
+  }
+
+  var estado = estadoNuevo(20);
   try {
-    var guardadas = JSON.parse(localStorage.getItem('vidas'));
-    if (Array.isArray(guardadas) && guardadas.length === 2 && guardadas.every(Number.isFinite)) vidas = guardadas;
+    var g = JSON.parse(localStorage.getItem('vidas'));
+    if (Array.isArray(g) && g.length === 2 && g.every(Number.isFinite)) {
+      estado.vidas = g; // formato antiguo (solo las vidas)
+    } else if (g && Array.isArray(g.vidas) && g.vidas.every(Number.isFinite) && VIDAS_POSIBLES.indexOf(g.vidaInicial) !== -1) {
+      estado = Object.assign(estadoNuevo(g.vidaInicial), g);
+      if (!g.reloj || !Array.isArray(g.reloj.acum)) estado.reloj = estadoNuevo(20).reloj;
+      if (!Array.isArray(g.veneno)) estado.veneno = [0, 0];
+    }
   } catch (e) {}
+
+  function guardar() {
+    try { localStorage.setItem('vidas', JSON.stringify(estado)); } catch (e) {}
+  }
 
   function panel(j) { return document.querySelector('.vidas-jugador[data-jugador="' + j + '"]'); }
   var acumulado = [0, 0];
   var timerDelta = [null, null];
 
   function pintar(j) {
-    panel(j).querySelector('.vidas-total').textContent = String(vidas[j]).replace('-', '−');
-    panel(j).classList.toggle('muerto', vidas[j] <= 0);
+    var p = panel(j);
+    p.querySelector('.vidas-total').textContent = String(estado.vidas[j]).replace('-', '−');
+    p.querySelector('.vidas-veneno-valor b').textContent = estado.veneno[j];
+    var muerto = estado.vidas[j] <= 0 || (estado.mostrarVeneno && estado.veneno[j] >= VENENO_LETAL);
+    p.classList.toggle('muerto', muerto);
+    p.classList.toggle('con-veneno', estado.mostrarVeneno);
+    p.classList.toggle('con-reloj', estado.mostrarRelojes);
   }
-
-  function guardar() {
-    try { localStorage.setItem('vidas', JSON.stringify(vidas)); } catch (e) {}
-  }
+  function pintarTodo() { pintar(0); pintar(1); pintarRelojes(); pintarPanel(); }
 
   function cambiar(j, n) {
-    vidas[j] += n;
+    estado.vidas[j] += n;
     acumulado[j] += n;
     pintar(j);
     guardar();
@@ -107,6 +171,8 @@
     zona.addEventListener('pointerdown', function (e) {
       if (puntero !== null) return;
       e.preventDefault();
+      // Con el panel de ajustes abierto, tocar fuera solo lo cierra (no cuenta como vida)
+      if (!panelAjustes.hidden) { ignorarClic = true; abrirPanel(false); return; }
       puntero = e.pointerId;
       mantenido = false;
       try { zona.setPointerCapture(e.pointerId); } catch (err) {}
@@ -116,7 +182,6 @@
         cambiar(j, 5 * signo);
         tRepetir = setInterval(function () { cambiar(j, 5 * signo); }, REPETICION);
       }, RETARDO_MANTENER);
-      pedirWakeLock();
     });
     zona.addEventListener('pointerup', function (e) {
       if (e.pointerId !== puntero) return;
@@ -140,27 +205,152 @@
     });
   });
 
-  // Evita el menú contextual / lupa al mantener pulsado
-  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  // === Veneno ===
+  document.querySelectorAll('[data-veneno]').forEach(function (btn) {
+    var j = parseInt(btn.closest('.vidas-jugador').dataset.jugador, 10);
+    btn.addEventListener('click', function () {
+      estado.veneno[j] = Math.max(0, estado.veneno[j] + parseInt(btn.dataset.veneno, 10));
+      pintar(j); guardar();
+      if (navigator.vibrate) navigator.vibrate(8);
+    });
+  });
 
-  // Reiniciar en dos pasos para no perder una partida por un toque sin querer
+  // === Relojes de turno (tipo ajedrez): cada jugador acumula su propio tiempo ===
+  function ahora() { return Date.now(); }
+  function tiempo(j) {
+    var r = estado.reloj;
+    return r.acum[j] + (r.desde !== null && r.activo === j ? ahora() - r.desde : 0);
+  }
+  function formatear(ms) {
+    var s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+    s = s % 60;
+    var mmss = (h ? String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0');
+    return h ? h + ':' + mmss : mmss;
+  }
+  function detener() {
+    var r = estado.reloj;
+    if (r.desde !== null) { r.acum[r.activo] += ahora() - r.desde; r.desde = null; }
+  }
+  function arrancar(j) {
+    detener();
+    estado.reloj.activo = j;
+    estado.reloj.desde = ahora();
+  }
+  function pintarRelojes() {
+    var r = estado.reloj;
+    for (var j = 0; j < 2; j++) {
+      var btn = panel(j).querySelector('.vidas-reloj');
+      btn.querySelector('b').textContent = formatear(tiempo(j));
+      btn.classList.toggle('corriendo', r.desde !== null && r.activo === j);
+      btn.classList.toggle('pausado', r.desde === null && r.activo === j);
+    }
+    document.getElementById('vidas-crono').classList.toggle('activo', estado.mostrarRelojes && r.desde !== null);
+  }
+  setInterval(function () { if (estado.mostrarRelojes) pintarRelojes(); }, 250);
+
+  // Tocar tu reloj: si corre el tuyo, pasas el turno al rival; si no (ninguno o el del
+  // rival), empieza tu turno — así también se corrige que el otro olvidara pasarlo.
+  document.querySelectorAll('.vidas-reloj').forEach(function (btn) {
+    var j = parseInt(btn.closest('.vidas-jugador').dataset.jugador, 10);
+    btn.addEventListener('click', function () {
+      var r = estado.reloj;
+      arrancar(r.desde !== null && r.activo === j ? 1 - j : j);
+      pintarRelojes(); guardar();
+      if (navigator.vibrate) navigator.vibrate(15);
+    });
+  });
+
+  // ⌛ de la barra: la primera vez muestra los relojes; después pausa / reanuda
+  document.getElementById('vidas-crono').addEventListener('click', function () {
+    var r = estado.reloj;
+    if (!estado.mostrarRelojes) {
+      estado.mostrarRelojes = true;
+      avisar('Toca tu reloj para empezar tu turno');
+    } else if (r.desde !== null) {
+      detener();
+      avisar('Relojes en pausa');
+    } else if (r.activo !== null) {
+      arrancar(r.activo);
+      avisar('Relojes en marcha');
+    } else {
+      avisar('Toca el reloj de quien empieza');
+    }
+    pintarTodo(); guardar();
+  });
+
+  // === Reiniciar en dos pasos para no perder una partida por un toque sin querer ===
   var btnReset = document.getElementById('vidas-reset');
   var tReset = null;
+  function reiniciar(vidaInicial) {
+    estado = estadoNuevo(vidaInicial, estado);
+    acumulado = [0, 0];
+    document.querySelectorAll('.vidas-delta').forEach(function (d) { d.classList.remove('visible'); });
+    pintarTodo(); guardar();
+  }
   btnReset.addEventListener('click', function () {
     if (!btnReset.classList.contains('confirmar')) {
       btnReset.classList.add('confirmar');
-      avisar('Toca otra vez para volver a 20');
+      avisar('Toca otra vez para volver a ' + estado.vidaInicial);
       tReset = setTimeout(function () { btnReset.classList.remove('confirmar'); }, 3000);
       return;
     }
     clearTimeout(tReset);
     btnReset.classList.remove('confirmar');
-    vidas = [VIDA_INICIAL, VIDA_INICIAL];
-    acumulado = [0, 0];
-    document.querySelectorAll('.vidas-delta').forEach(function (d) { d.classList.remove('visible'); });
-    pintar(0); pintar(1); guardar();
+    reiniciar(estado.vidaInicial);
     avisar('Partida reiniciada');
   });
+
+  // === Panel de ajustes (⚙) ===
+  var btnAjustes = document.getElementById('vidas-ajustes');
+  var panelAjustes = document.getElementById('vidas-panel');
+  var optVeneno = document.getElementById('vidas-opt-veneno');
+  var optRelojes = document.getElementById('vidas-opt-relojes');
+  function pintarPanel() {
+    panelAjustes.querySelectorAll('[data-vida]').forEach(function (b) {
+      var sel = parseInt(b.dataset.vida, 10) === estado.vidaInicial;
+      b.classList.toggle('activo', sel);
+      b.setAttribute('aria-checked', sel);
+    });
+    optVeneno.checked = estado.mostrarVeneno;
+    optRelojes.checked = estado.mostrarRelojes;
+  }
+  function abrirPanel(abrir) {
+    panelAjustes.hidden = !abrir;
+    btnAjustes.setAttribute('aria-expanded', abrir);
+    btnAjustes.classList.toggle('activo', abrir);
+  }
+  btnAjustes.addEventListener('click', function (e) {
+    e.stopPropagation();
+    abrirPanel(panelAjustes.hidden);
+  });
+  var ignorarClic = false; // el toque que cerró el panel desde una zona no hace nada más
+  document.addEventListener('click', function (e) {
+    if (ignorarClic) { ignorarClic = false; return; }
+    if (!panelAjustes.hidden && !panelAjustes.contains(e.target)) abrirPanel(false);
+  });
+  panelAjustes.querySelectorAll('[data-vida]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var nueva = parseInt(b.dataset.vida, 10);
+      if (nueva === estado.vidaInicial) return;
+      var empezada = estado.vidas[0] !== estado.vidaInicial || estado.vidas[1] !== estado.vidaInicial ||
+        estado.veneno[0] || estado.veneno[1] || estado.reloj.acum[0] || estado.reloj.acum[1] || estado.reloj.desde !== null;
+      if (empezada && !confirm('Cambiar la vida inicial reinicia la partida a ' + nueva + '. ¿Continuar?')) return;
+      reiniciar(nueva);
+      avisar('Partida a ' + nueva + ' vidas');
+    });
+  });
+  optVeneno.addEventListener('change', function () {
+    estado.mostrarVeneno = optVeneno.checked;
+    pintarTodo(); guardar();
+  });
+  optRelojes.addEventListener('change', function () {
+    estado.mostrarRelojes = optRelojes.checked;
+    if (!estado.mostrarRelojes) detener(); // ocultarlos los pausa
+    pintarTodo(); guardar();
+  });
+
+  // Evita el menú contextual / lupa al mantener pulsado
+  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   var aviso = document.getElementById('vidas-aviso');
   var tAviso = null;
@@ -178,11 +368,11 @@
   var bloqueo = null;
   var estadoWake = 'off';
 
-  function marcarWake(estado) {
-    estadoWake = estado;
-    btnWake.classList.toggle('activo', estado === 'on');
-    btnWake.title = estado === 'on' ? 'La pantalla se mantendrá encendida'
-      : estado === 'nosoporta' ? 'Este navegador no puede mantener la pantalla encendida'
+  function marcarWake(e) {
+    estadoWake = e;
+    btnWake.classList.toggle('activo', e === 'on');
+    btnWake.title = e === 'on' ? 'La pantalla se mantendrá encendida'
+      : e === 'nosoporta' ? 'Este navegador no puede mantener la pantalla encendida'
       : 'La pantalla puede apagarse: toca para reintentar';
   }
 
@@ -199,8 +389,9 @@
     }).catch(function () { marcarWake('off'); });
   }
 
+  document.addEventListener('pointerdown', function () { pedirWakeLock(); });
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') pedirWakeLock();
+    if (document.visibilityState === 'visible') { pedirWakeLock(); pintarRelojes(); }
   });
 
   btnWake.addEventListener('click', function () {
@@ -211,7 +402,7 @@
     });
   });
 
-  pintar(0); pintar(1);
+  pintarTodo();
   pedirWakeLock();
 
   // Esta página no carga main.js: registrar aquí el service worker para el uso sin conexión

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -316,10 +317,16 @@ func ObtenerSesion(db *sql.DB, id int) (models.Sesion, error) {
 	return s, err
 }
 
-// ActualizarDescripcionSesion cambia la descripción y el modo de enfrentamiento de una sesión existente
-func ActualizarDescripcionSesion(db *sql.DB, id int, descripcion string, enfrentamientoUnico bool) error {
-	_, err := db.Exec(`UPDATE sesiones SET descripcion=$1, enfrentamiento_unico=$2 WHERE id=$3`, descripcion, enfrentamientoUnico, id)
-	return err
+// ActualizarDescripcionSesion cambia la fecha, la descripción y el modo de enfrentamiento de una sesión existente
+func ActualizarDescripcionSesion(db *sql.DB, id int, fecha time.Time, descripcion string, enfrentamientoUnico bool) error {
+	return unaFila(db.Exec(`UPDATE sesiones SET fecha=$1, descripcion=$2, enfrentamiento_unico=$3 WHERE id=$4`,
+		fecha.Format("2006-01-02"), descripcion, enfrentamientoUnico, id))
+}
+
+// BorrarSesion elimina una sesión y todos sus resultados (victorias y colores caen en
+// cascada). Devuelve sql.ErrNoRows si la sesión no existe.
+func BorrarSesion(db *sql.DB, id int) error {
+	return unaFila(db.Exec(`DELETE FROM sesiones WHERE id=$1`, id))
 }
 
 // GanadorSesion contiene info del ganador (o ganadores en caso de empate) de una sesión
@@ -415,19 +422,19 @@ type ResultadoJugador struct {
 	Notas     string
 }
 
-// GuardarResultadosSesion guarda TODA la sesión en una única transacción: la descripción
+// GuardarResultadosSesion guarda TODA la sesión en una única transacción: fecha, descripción
 // y el modo, el borrado de los jugadores que ya no participan y el resultado de cada
 // participante. Si algo falla no se guarda nada, así nunca quedan sesiones a medias.
 // Las victorias y colores deben venir ya validados (ver handlers.AdminGuardarResultados).
-func GuardarResultadosSesion(db *sql.DB, sesionID int, descripcion string, enfrentamientoUnico bool, resultados []ResultadoJugador) error {
+func GuardarResultadosSesion(db *sql.DB, sesionID int, fecha time.Time, descripcion string, enfrentamientoUnico bool, resultados []ResultadoJugador) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	res, err := tx.Exec(`UPDATE sesiones SET descripcion=$1, enfrentamiento_unico=$2 WHERE id=$3`,
-		descripcion, enfrentamientoUnico, sesionID)
+	res, err := tx.Exec(`UPDATE sesiones SET fecha=$1, descripcion=$2, enfrentamiento_unico=$3 WHERE id=$4`,
+		fecha.Format("2006-01-02"), descripcion, enfrentamientoUnico, sesionID)
 	if err != nil {
 		return err
 	}
@@ -661,6 +668,19 @@ func ObtenerRanking(db *sql.DB, temporadaID int) ([]models.FilaRanking, error) {
 		}
 		return ranking[i].WinRate > ranking[k].WinRate
 	})
+
+	// Rating Elo de la temporada. Si falla, el ranking se muestra igual (con 1500).
+	elo, err := ObtenerElo(db, temporadaID)
+	if err != nil {
+		log.Printf("Elo de la temporada %d: %v", temporadaID, err)
+	}
+	for i := range ranking {
+		ranking[i].Elo = int(math.Round(EloInicial))
+		if e, ok := elo[ranking[i].Jugador.ID]; ok {
+			ranking[i].Elo = int(math.Round(e.Rating))
+			ranking[i].EloDelta = int(math.Round(e.DeltaUltimo))
+		}
+	}
 
 	// Color de maná MÁS jugado por cada jugador (para la etiqueta de color en la tabla)
 	if colRows, err := db.Query(`

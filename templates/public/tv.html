@@ -20,7 +20,7 @@
     {{else}}
     <table class="tv-table">
       <thead>
-        <tr><th>#</th><th style="text-align:left">Jugador</th><th>V</th><th>D</th><th>Win rate</th><th>Racha</th></tr>
+        <tr><th>#</th><th style="text-align:left">Jugador</th><th>V</th><th>D</th><th>Win rate</th><th>Elo</th><th>Racha</th></tr>
       </thead>
       <tbody>
         {{range $i, $fila := .Ranking}}
@@ -33,6 +33,7 @@
           <td class="tv-win">{{$fila.Victorias}}</td>
           <td class="tv-loss">{{$fila.Derrotas}}</td>
           <td>{{formatPct $fila.WinRate}}</td>
+          <td>{{$fila.Elo}} {{template "eloDelta" $fila.EloDelta}}</td>
           <td>{{if eq $fila.RachaActual 0}}<span style="opacity:0.4">—</span>{{else if eq $fila.RachaTipo "W"}}<span class="tv-win">{{$fila.RachaActual}}V</span>{{else}}<span class="tv-loss">{{$fila.RachaActual}}D</span>{{end}}</td>
         </tr>
         {{end}}

@@ -425,7 +425,8 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 		http.NotFound(w, r)
 		return
 	}
-	if _, err := db.ObtenerSesion(a.DB, sesionID); err != nil {
+	sesion, err := db.ObtenerSesion(a.DB, sesionID)
+	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
@@ -435,6 +436,18 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Fecha editable; si el formulario no la trae (página abierta antes de esta versión)
+	// se conserva la actual
+	fecha := sesion.Fecha
+	if f := r.FormValue("fecha"); f != "" {
+		parsed, err := time.Parse("2006-01-02", f)
+		if err != nil {
+			http.Error(w, "Fecha inválida", http.StatusBadRequest)
+			return
+		}
+		fecha = parsed
+	}
+
 	descripcion := r.FormValue("descripcion")
 	enfrentamientoUnico := r.FormValue("enfrentamiento_unico") == "on"
 
@@ -442,7 +455,7 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 	jugadoresStr := r.FormValue("jugadores_sesion")
 	if jugadoresStr == "" && r.FormValue("vaciar") == "1" {
 		// Sin jugadores y confirmado en el formulario: se borran todos los resultados
-		if err := db.GuardarResultadosSesion(a.DB, sesionID, descripcion, enfrentamientoUnico, nil); err != nil {
+		if err := db.GuardarResultadosSesion(a.DB, sesionID, fecha, descripcion, enfrentamientoUnico, nil); err != nil {
 			log.Printf("Error al vaciar la sesión %d: %v", sesionID, err)
 			http.Error(w, "No se pudo vaciar la sesión (no se ha modificado nada).", http.StatusInternalServerError)
 			return
@@ -452,7 +465,7 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 	}
 	if jugadoresStr == "" {
 		// Sin jugadores y sin confirmar el vaciado: solo se guarda la descripción
-		if err := db.ActualizarDescripcionSesion(a.DB, sesionID, descripcion, enfrentamientoUnico); err != nil {
+		if err := db.ActualizarDescripcionSesion(a.DB, sesionID, fecha, descripcion, enfrentamientoUnico); err != nil {
 			log.Println("Error al actualizar la sesión:", err)
 			http.Error(w, "Error al guardar la sesión", http.StatusInternalServerError)
 			return
@@ -492,13 +505,32 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Toda la sesión en una transacción: si algo falla no se guarda nada
-	if err := db.GuardarResultadosSesion(a.DB, sesionID, descripcion, enfrentamientoUnico, resultados); err != nil {
+	if err := db.GuardarResultadosSesion(a.DB, sesionID, fecha, descripcion, enfrentamientoUnico, resultados); err != nil {
 		log.Printf("Error al guardar los resultados de la sesión %d: %v", sesionID, err)
 		http.Error(w, "No se pudieron guardar los resultados (no se ha modificado nada). Vuelve atrás e inténtalo de nuevo.", http.StatusInternalServerError)
 		return
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/sesion/%d", sesionID), http.StatusFound)
+}
+
+// AdminBorrarSesion elimina una sesión con todos sus resultados. Como borrar una
+// temporada, exige reescribir la contraseña de admin.
+func (a *AppHandlers) AdminBorrarSesion(w http.ResponseWriter, r *http.Request) {
+	sesionID, err := strconv.Atoi(r.PathValue("id"))
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	if r.FormValue("password") != passwordAdmin() {
+		http.Error(w, "Contraseña incorrecta. La sesión no se ha borrado.", http.StatusUnauthorized)
+		return
+	}
+	if err := db.BorrarSesion(a.DB, sesionID); err != nil {
+		errorBD(w, err, "borrar la sesión", "La sesión no existe.", "")
+		return
+	}
+	http.Redirect(w, r, "/admin", http.StatusFound)
 }
 
 // victoriasValidas filtra los rivales enviados: solo jugadores que participan en la

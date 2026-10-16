@@ -325,9 +325,12 @@ function copiarDetalladaAMatriz(detallada, matriz) {
     cb.checked = ids.indexOf(cb.dataset.jug) !== -1;
   });
   copiarCampos(detallada, matriz);
-  const desc = detallada.querySelector('[name="descripcion"]');
-  const descMatriz = matriz.querySelector('[name="descripcion"]');
-  if (desc && descMatriz) descMatriz.value = desc.value;
+  // Descripción y fecha solo se editan en la vista detallada; la matriz las lleva ocultas
+  ['descripcion', 'fecha'].forEach(function(nombre) {
+    const origen = detallada.querySelector('[name="' + nombre + '"]');
+    const destino = matriz.querySelector('[name="' + nombre + '"]');
+    if (origen && destino) destino.value = origen.value;
+  });
 }
 
 function copiarMatrizADetallada(matriz, detallada) {

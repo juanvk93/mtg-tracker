@@ -58,6 +58,8 @@ type FilaRanking struct {
 	RachaTipo      string // "W" o "L"
 	MejorRacha     int    // racha de victorias más larga de la temporada
 	ColorPrincipal string // color de maná más jugado en la temporada ("" si ninguno)
+	Elo            int    // rating Elo de la temporada (empieza en 1500)
+	EloDelta       int    // variación del Elo en su último draft con partidas
 }
 
 // EstadisticaColor contiene estadísticas por color para un jugador

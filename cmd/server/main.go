@@ -91,6 +91,7 @@ func main() {
 	mux.HandleFunc("POST /admin/sesion/crear", handlers.MiddlewareAdmin(h.AdminCrearSesion))
 	mux.HandleFunc("GET /admin/sesion/{id}/resultados", handlers.MiddlewareAdmin(h.AdminFormResultados))
 	mux.HandleFunc("POST /admin/sesion/{id}/resultados", handlers.MiddlewareAdmin(h.AdminGuardarResultados))
+	mux.HandleFunc("POST /admin/sesion/{id}/borrar", handlers.MiddlewareAdmin(h.AdminBorrarSesion))
 
 	// Jugadores
 	mux.HandleFunc("POST /admin/jugador/crear", handlers.MiddlewareAdmin(h.AdminCrearJugador))

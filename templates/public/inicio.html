@@ -87,9 +87,10 @@
         <th style="width:3rem">#</th>
         <th class="sortable" data-sort="text">Jugador</th>
         <th class="sortable col-hide-mobile" data-sort="num">Partidas</th>
-        <th class="sortable" data-sort="num">Victorias</th>
+        <th class="sortable" data-sort="num"><span class="txt-largo">Victorias</span><span class="txt-corto">V</span></th>
         <th class="sortable col-hide-mobile" data-sort="num">Derrotas</th>
-        <th class="sortable" data-sort="num">Win rate</th>
+        <th class="sortable" data-sort="num"><span class="txt-largo">Win rate</span><span class="txt-corto">WR</span></th>
+        <th class="sortable" data-sort="num" title="Rating Elo de la temporada: ganar a los de arriba vale más">Elo</th>
         <th class="sortable" data-sort="num">Racha</th>
       </tr>
     </thead>
@@ -118,6 +119,7 @@
             {{formatPct $fila.WinRate}}
           </span>
         </td>
+        <td data-val="{{$fila.Elo}}" class="elo-cell"><strong>{{$fila.Elo}}</strong> {{template "eloDelta" $fila.EloDelta}}</td>
         <td data-val="{{if eq $fila.RachaTipo "W"}}{{$fila.RachaActual}}{{else if eq $fila.RachaTipo "L"}}-{{$fila.RachaActual}}{{else}}0{{end}}">
           {{if eq $fila.RachaActual 0}}
             <span class="racha">—</span>

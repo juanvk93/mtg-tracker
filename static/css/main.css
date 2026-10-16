@@ -1258,7 +1258,7 @@ hr.divider {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 12%;
+  top: 10%;
   text-align: center;
   font-size: clamp(20px, 6vmin, 36px);
   font-weight: 600;
@@ -1275,7 +1275,7 @@ hr.divider {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 28px;
+  gap: 16px;
   padding: 8px 0;
   background: var(--bg-card);
   border-top: 0.5px solid var(--border);
@@ -1321,3 +1321,121 @@ hr.divider {
   z-index: 2;
 }
 .vidas-aviso.visible { opacity: 1; }
+
+/* Zona de peligro (borrar sesión) */
+.zona-peligro { margin-top: 2.5rem; border-color: rgba(160,57,26,0.35); }
+
+/* Elo: variación del último draft */
+.elo-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.elo-delta { font-size: 11px; font-weight: 600; margin-left: 2px; }
+.elo-delta.sube { color: #2d7a47; }
+.elo-delta.baja { color: #a0391a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .elo-delta.sube { color: #5aba7a; } :root:not([data-theme="light"]) .elo-delta.baja { color: #e0785a; } }
+:root[data-theme="dark"] .elo-delta.sube { color: #5aba7a; }
+:root[data-theme="dark"] .elo-delta.baja { color: #e0785a; }
+@media (max-width: 768px) { .elo-cell .elo-delta { display: none; } }
+
+/* Veneno y reloj de turno: fila en la parte de cada jugador, por encima de las zonas */
+.vidas-extras {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 7%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  z-index: 2;
+  pointer-events: none; /* solo sus controles capturan toques; el resto va a las zonas */
+}
+.vidas-veneno, .vidas-reloj { display: none; pointer-events: auto; }
+.vidas-jugador.con-veneno .vidas-veneno { display: inline-flex; }
+.vidas-jugador.con-reloj .vidas-reloj { display: inline-flex; }
+.vidas-veneno {
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.25);
+  border: 0.5px solid var(--border);
+}
+.vidas-veneno-valor { min-width: 48px; text-align: center; color: #9bd36b; font-size: 15px; font-variant-numeric: tabular-nums; }
+.vidas-mini {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+}
+.vidas-mini:active { transform: scale(0.92); }
+.vidas-reloj {
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 0.5px solid var(--border);
+  background: rgba(0,0,0,0.25);
+  color: var(--text-muted);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.vidas-reloj b { font-weight: 600; }
+.vidas-reloj.corriendo { color: var(--text); border-color: var(--brand); background: var(--brand-bg); box-shadow: 0 0 14px var(--brand-glow); }
+.vidas-reloj.corriendo::after { content: '▶'; font-size: 10px; color: var(--brand); }
+.vidas-reloj.pausado::after { content: '❚❚'; font-size: 9px; color: var(--text-faint); }
+.vidas-btn.activo { color: var(--brand); border-color: var(--brand); background: var(--brand-bg); }
+
+/* Panel de ajustes del contador */
+.vidas-panel {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 10px);
+  transform: translateX(-50%);
+  width: min(92vw, 320px);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  border: 0.5px solid var(--border-hover);
+  box-shadow: var(--shadow-hover);
+  z-index: 5;
+}
+.vidas-panel[hidden] { display: none; }
+.vidas-panel-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.vidas-panel-fila + .vidas-panel-fila { border-top: 0.5px solid var(--border); }
+.vidas-panel-fila input { width: 20px; height: 20px; accent-color: var(--brand); }
+.vidas-opciones { display: flex; gap: 6px; }
+.vidas-opciones button {
+  min-width: 44px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-weight: 700;
+  cursor: pointer;
+}
+.vidas-opciones button.activo { color: var(--brand); border-color: var(--brand); background: var(--brand-bg); }
+
+/* Cabeceras abreviadas en móvil (el ranking tiene 6 columnas visibles con el Elo) */
+.txt-corto { display: none; }
+@media (max-width: 768px) {
+  .txt-largo { display: none; }
+  .txt-corto { display: inline; }
+  .ranking-table th, .ranking-table td { padding-left: 5px; padding-right: 5px; }
+  .ranking-table .win-rate { padding-left: 6px; padding-right: 6px; }
+}

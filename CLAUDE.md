@@ -4,6 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Tracker de partidas de Magic: The Gathering (Draft mensual) para un grupo de amigos. Backend Go (solo stdlib `net/http`), HTML renderizado en servidor con `html/template`, CSS puro + Mana Font, PostgreSQL en Supabase, deploy en Render vía Docker. Versión actual: ver `internal/version`.
 
+## ⚠️ Pendiente del usuario (recordárselo al empezar cada sesión hasta que confirme que está hecho)
+
+- **Render: que no despliegue si el CI falla.** En el servicio: *Settings → Build & Deploy → Auto-Deploy → "After CI Checks Pass"*. Si no aparece esa opción, resolverlo de otra forma (p. ej. desactivar el auto-deploy y desplegar con un Deploy Hook desde el workflow de CI tras pasar los checks). Cuando el usuario confirme que está hecho, borrar este punto.
+- **UptimeRobot: monitor externo de `/healthz`.** Crear cuenta gratuita en uptimerobot.com → *Add New Monitor* → tipo **HTTP(s)**, URL `https://<app>.onrender.com/healthz`, intervalo **5 minutos**, alertas por email activadas. Evita que Render duerma el servicio, lo despierta si se reinicia y avisa si la app o Supabase caen (`/healthz` responde `ok` 200, o `db error` 503 si falla la BD). Cuando el usuario confirme que está hecho, borrar este punto.
+
+Cuando no quede ningún punto, borrar esta sección entera.
+
 ## Comandos
 
 ```bash

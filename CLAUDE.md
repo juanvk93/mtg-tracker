@@ -13,7 +13,7 @@ go mod tidy
 
 go build ./...
 go vet ./...
-go test ./...                 # tests de funciones puras (calcularRacha, desviación, gráfica de evolución)
+go test ./...                 # tests de funciones puras (rachas, Elo, gráficas, validaciones) + carga de todas las plantillas
 
 # Ejecutar en local (necesita una BD PostgreSQL accesible):
 DATABASE_URL="postgresql://localhost:5432/mtg_tracker?sslmode=disable" \
@@ -78,4 +78,5 @@ No hay sesiones ni hashing: `MiddlewareAdmin` compara la cookie `admin_auth` dir
 - Pool limitado a propósito (`MaxOpenConns(5)`) por el free tier de Supabase.
 - **Keep-alive** (`keepAlive` en `main.go`): cada 2 min hace `db.Ping` (consulta real a `temporadas`, para que Supabase no pause el proyecto) y un GET a `$RENDER_EXTERNAL_URL/healthz` (variable que Render define sola) para que el plan free no duerma el servicio. Llamar a localhost no serviría: Render solo cuenta el tráfico que entra por su proxy.
 - **Modo enfrentamiento único** (`sesiones.enfrentamiento_unico`): cada pareja juega una vez, así que no puede haber A→B y B→A. El JS (`aplicarBloqueoInverso` en `main.js`) bloquea en rojo la casilla inversa en la vista detallada y en la matriz; `victoriaCruzada` en `admin.go` lo valida en servidor.
+- **CI** (`.github/workflows/ci.yml`): en cada push/PR a `main` comprueba `gofmt`, que `go.mod`/`go.sum` estén al día (`go mod tidy`), `go vet`, `go test`, el build y `docker build`. Render debe tener *Auto-Deploy → "After CI Checks Pass"* para no desplegar si falla. Un error de sintaxis en una plantilla lo detecta `TestCargarTemplates` (`cmd/server`); si creas una plantilla nueva, añádela a su lista.
 - Deploy (`render.yaml`): servicio Docker en Render. Variables a configurar a mano: `DATABASE_URL` y `ADMIN_PASSWORD` (`PORT` viene por defecto a 8080).

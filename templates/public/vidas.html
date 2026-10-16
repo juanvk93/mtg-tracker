@@ -205,6 +205,9 @@
 
   pintar(0); pintar(1);
   pedirWakeLock();
+
+  // Esta página no carga main.js: registrar aquí el service worker para el uso sin conexión
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(function () {});
 })();
 </script>
 </body>

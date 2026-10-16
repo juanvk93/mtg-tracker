@@ -49,6 +49,13 @@ func main() {
 
 	// Archivos estáticos
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
+	// El service worker se sirve en la raíz: su ámbito máximo es la carpeta desde la que se
+	// sirve, y en /static/ solo controlaría /static/… (no las páginas)
+	mux.HandleFunc("GET /sw.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		http.ServeFile(w, r, "./static/sw.js")
+	})
 
 	// ========== RUTAS PÚBLICAS ==========
 	mux.HandleFunc("GET /", h.Inicio)

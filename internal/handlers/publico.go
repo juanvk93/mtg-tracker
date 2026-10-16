@@ -226,9 +226,11 @@ func (a *AppHandlers) Estadisticas(w http.ResponseWriter, r *http.Request) {
 		j1, err1 := strconv.Atoi(j1Str)
 		j2, err2 := strconv.Atoi(j2Str)
 		if err1 == nil && err2 == nil && j1 != j2 {
-			resultado, err := db.ObtenerH2HExtendido(a.DB, j1, j2)
+			resultado, err := db.ObtenerH2HExtendido(a.DB, j1, j2, temporada.ID)
 			if err == nil {
 				h2h = resultado
+			} else {
+				log.Println("Error al obtener el head-to-head:", err)
 			}
 		}
 	}

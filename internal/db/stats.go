@@ -350,61 +350,54 @@ func ObtenerRachaRecordJugador(db *sql.DB, jugadorID, temporadaID int) (models.R
 		FROM sesiones s
 		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $3
 		WHERE s.temporada_id = $4
-		ORDER BY s.fecha ASC`, jugadorID, jugadorID, jugadorID, temporadaID)
+		ORDER BY s.fecha ASC, s.id ASC`, jugadorID, jugadorID, jugadorID, temporadaID)
 	if err != nil {
 		return models.RachaRecord{}, err
 	}
 	defer rows.Close()
 
-	type sesionResult struct {
-		gano   bool // true si ganó la sesión, false si perdió, sesiones empatadas se ignoran
-		jugada bool
-	}
-
-	var historial []sesionResult
+	var historial []sesionVD
 	for rows.Next() {
 		var fecha time.Time
-		var vict, derr int
-		rows.Scan(&fecha, &vict, &derr)
-		if vict > derr {
-			historial = append(historial, sesionResult{gano: true, jugada: true})
-		} else if derr > vict {
-			historial = append(historial, sesionResult{gano: false, jugada: true})
+		var s sesionVD
+		if err := rows.Scan(&fecha, &s.Victorias, &s.Derrotas); err != nil {
+			return models.RachaRecord{}, err
 		}
-		// Empates: se ignoran (rompen la racha pero no cuentan como W ni L)
+		historial = append(historial, s)
 	}
-
-	if len(historial) == 0 {
-		return models.RachaRecord{}, nil
+	if err := rows.Err(); err != nil {
+		return models.RachaRecord{}, err
 	}
+	return calcularRachaRecord(historial), nil
+}
 
-	// Buscar la racha más larga de victorias consecutivas
-	mejorW := 0
-	mejorL := 0
-	actualW := 0
-	actualL := 0
+// calcularRachaRecord busca la racha más larga (de victorias o de derrotas) en el
+// historial en orden cronológico. Un draft empatado (V == D) corta cualquier racha,
+// igual que en calcularRacha y calcularMejorRacha. En caso de igualdad se prioriza la
+// racha de victorias (más motivador).
+func calcularRachaRecord(historial []sesionVD) models.RachaRecord {
+	mejorW, mejorL, actualW, actualL := 0, 0, 0, 0
 	for _, s := range historial {
-		if s.gano {
+		switch {
+		case s.Victorias > s.Derrotas:
 			actualW++
 			actualL = 0
-			if actualW > mejorW {
-				mejorW = actualW
-			}
-		} else {
+		case s.Derrotas > s.Victorias:
 			actualL++
 			actualW = 0
-			if actualL > mejorL {
-				mejorL = actualL
-			}
+		default:
+			actualW, actualL = 0, 0
 		}
+		mejorW = max(mejorW, actualW)
+		mejorL = max(mejorL, actualL)
 	}
-
-	// La racha "récord" es la más larga, sea de victorias o de derrotas.
-	// Priorizamos victorias en caso de empate (más motivador).
+	if mejorW == 0 && mejorL == 0 {
+		return models.RachaRecord{}
+	}
 	if mejorW >= mejorL {
-		return models.RachaRecord{Longitud: mejorW, Tipo: "W"}, nil
+		return models.RachaRecord{Longitud: mejorW, Tipo: "W"}
 	}
-	return models.RachaRecord{Longitud: mejorL, Tipo: "L"}, nil
+	return models.RachaRecord{Longitud: mejorL, Tipo: "L"}
 }
 
 // ObtenerDistribucionColoresGrupo devuelve cuántas veces se ha jugado cada color
@@ -671,28 +664,16 @@ func ContarSesionesJugadasPorJugador(db *sql.DB, jugadorID, temporadaID int) (in
 	return n, err
 }
 
-// ObtenerH2HExtendido devuelve el head-to-head detallado con cada encuentro por sesión
-// y los colores que jugaba cada uno en ese momento.
-func ObtenerH2HExtendido(db *sql.DB, j1ID, j2ID int) (*models.H2HExtendido, error) {
-	base, err := ObtenerHeadToHead(db, j1ID, j2ID)
+// ObtenerH2HExtendido devuelve el head-to-head detallado de una temporada, con cada
+// encuentro por sesión y los colores que jugaba cada uno. Usa un nº fijo de consultas.
+func ObtenerH2HExtendido(db *sql.DB, j1ID, j2ID, temporadaID int) (*models.H2HExtendido, error) {
+	base, err := ObtenerHeadToHead(db, j1ID, j2ID, temporadaID)
 	if err != nil {
 		return nil, err
 	}
-
 	resultado := &models.H2HExtendido{HeadToHead: base}
 
-	// Sesiones donde han coincidido (ambos tienen un resultado)
-	rows, err := db.Query(`
-		SELECT s.id, s.fecha, s.descripcion, r1.id, r2.id
-		FROM sesiones s
-		JOIN resultados r1 ON r1.sesion_id = s.id AND r1.jugador_id = $1
-		JOIN resultados r2 ON r2.sesion_id = s.id AND r2.jugador_id = $2
-		ORDER BY s.fecha DESC`, j1ID, j2ID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
+	// Sesiones de la temporada donde han coincidido (ambos tienen un resultado)
 	type sesionPar struct {
 		sesionID    int
 		fecha       time.Time
@@ -700,46 +681,97 @@ func ObtenerH2HExtendido(db *sql.DB, j1ID, j2ID int) (*models.H2HExtendido, erro
 		r1ID, r2ID  int
 	}
 	var pares []sesionPar
-	for rows.Next() {
-		var sp sesionPar
-		if err := rows.Scan(&sp.sesionID, &sp.fecha, &sp.descripcion, &sp.r1ID, &sp.r2ID); err != nil {
-			return nil, err
+	if err := func() error {
+		rows, err := db.Query(`
+			SELECT s.id, s.fecha, s.descripcion, r1.id, r2.id
+			FROM sesiones s
+			JOIN resultados r1 ON r1.sesion_id = s.id AND r1.jugador_id = $1
+			JOIN resultados r2 ON r2.sesion_id = s.id AND r2.jugador_id = $2
+			WHERE s.temporada_id = $3
+			ORDER BY s.fecha DESC, s.id DESC`, j1ID, j2ID, temporadaID)
+		if err != nil {
+			return err
 		}
-		pares = append(pares, sp)
+		defer rows.Close()
+		for rows.Next() {
+			var sp sesionPar
+			if err := rows.Scan(&sp.sesionID, &sp.fecha, &sp.descripcion, &sp.r1ID, &sp.r2ID); err != nil {
+				return err
+			}
+			pares = append(pares, sp)
+		}
+		return rows.Err()
+	}(); err != nil {
+		return nil, err
+	}
+	if len(pares) == 0 {
+		return resultado, nil
 	}
 
-	// Para cada sesión, obtener colores de cada uno y conteo de victorias mutuas
+	// Colores de los dos jugadores en la temporada, agrupados por resultado
+	colores := make(map[int][]string)
+	if err := func() error {
+		rows, err := db.Query(`
+			SELECT cj.resultado_id, cj.color
+			FROM colores_jugados cj
+			JOIN resultados r ON r.id = cj.resultado_id
+			JOIN sesiones s ON s.id = r.sesion_id
+			WHERE s.temporada_id = $1 AND r.jugador_id IN ($2, $3)
+			ORDER BY cj.color`, temporadaID, j1ID, j2ID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var rid int
+			var c string
+			if err := rows.Scan(&rid, &c); err != nil {
+				return err
+			}
+			colores[rid] = append(colores[rid], c)
+		}
+		return rows.Err()
+	}(); err != nil {
+		return nil, err
+	}
+
+	// Victorias mutuas por sesión: (sesión, ganador) → nº de victorias sobre el otro
+	ganadas := make(map[[2]int]int)
+	if err := func() error {
+		rows, err := db.Query(`
+			SELECT r.sesion_id, r.jugador_id, COUNT(*)
+			FROM victorias v
+			JOIN resultados r ON r.id = v.resultado_id
+			JOIN sesiones s ON s.id = r.sesion_id
+			WHERE s.temporada_id = $1
+			  AND ((r.jugador_id = $2 AND v.rival_id = $3) OR (r.jugador_id = $3 AND v.rival_id = $2))
+			GROUP BY r.sesion_id, r.jugador_id`, temporadaID, j1ID, j2ID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var sid, jid, n int
+			if err := rows.Scan(&sid, &jid, &n); err != nil {
+				return err
+			}
+			ganadas[[2]int{sid, jid}] = n
+		}
+		return rows.Err()
+	}(); err != nil {
+		return nil, err
+	}
+
 	for _, p := range pares {
 		enc := models.EncuentroH2H{
-			SesionID:    p.sesionID,
-			Fecha:       p.fecha,
-			Descripcion: p.descripcion,
+			SesionID:     p.sesionID,
+			Fecha:        p.fecha,
+			Descripcion:  p.descripcion,
+			ColoresJ1:    colores[p.r1ID],
+			ColoresJ2:    colores[p.r2ID],
+			GanadasPorJ1: ganadas[[2]int{p.sesionID, j1ID}],
+			GanadasPorJ2: ganadas[[2]int{p.sesionID, j2ID}],
 		}
-
-		// Colores de J1
-		cRows, _ := db.Query(`SELECT color FROM colores_jugados WHERE resultado_id=$1 ORDER BY color`, p.r1ID)
-		for cRows.Next() {
-			var c string
-			cRows.Scan(&c)
-			enc.ColoresJ1 = append(enc.ColoresJ1, c)
-		}
-		cRows.Close()
-
-		// Colores de J2
-		cRows, _ = db.Query(`SELECT color FROM colores_jugados WHERE resultado_id=$1 ORDER BY color`, p.r2ID)
-		for cRows.Next() {
-			var c string
-			cRows.Scan(&c)
-			enc.ColoresJ2 = append(enc.ColoresJ2, c)
-		}
-		cRows.Close()
-
-		// Victorias mutuas en esa sesión
-		db.QueryRow(`SELECT COUNT(*) FROM victorias WHERE resultado_id=$1 AND rival_id=$2`,
-			p.r1ID, j2ID).Scan(&enc.GanadasPorJ1)
-		db.QueryRow(`SELECT COUNT(*) FROM victorias WHERE resultado_id=$1 AND rival_id=$2`,
-			p.r2ID, j1ID).Scan(&enc.GanadasPorJ2)
-
 		// Solo añadir si realmente jugaron entre sí en esa sesión
 		if enc.GanadasPorJ1 > 0 || enc.GanadasPorJ2 > 0 {
 			resultado.Encuentros = append(resultado.Encuentros, enc)

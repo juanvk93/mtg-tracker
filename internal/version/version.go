@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.12.0"
+const Version = "1.13.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,17 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.13.0",
+			Fecha:   "2026-10-16",
+			Cambios: []string{
+				"Head to head de Estadísticas: ahora muestra solo la temporada seleccionada (antes mezclaba todas) y ya no rompe la página si falla una consulta",
+				"Racha récord: un draft empatado corta la racha, igual que en el ranking y los premios",
+				"Se puede vaciar una sesión: guardar sin ningún jugador marcado borra sus resultados, tras pedir confirmación",
+				"Vista rápida (matriz) en una sesión nueva: empieza sin nadie marcado como 'Jugó', igual que la vista detallada",
+				"El contador de vidas y el dado funcionan de verdad sin conexión (el service worker ahora controla toda la web)",
+			},
+		},
 		{
 			Version: "1.12.0",
 			Fecha:   "2026-10-16",

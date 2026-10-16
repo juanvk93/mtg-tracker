@@ -193,7 +193,7 @@
 
 <!-- Head to head extendido -->
 <section class="mb-4">
-  <div class="section-title">Head to head</div>
+  <div class="section-title">Head to head{{if .Temporada}} · Temporada {{.Temporada.Anio}}{{end}}</div>
   <div class="card mb-3">
     <form method="GET" action="/estadisticas" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
       {{if .Temporada}}<input type="hidden" name="temporada" value="{{.Temporada.ID}}">{{end}}

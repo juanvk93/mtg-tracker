@@ -1,11 +1,18 @@
-// Service worker mínimo: cachea el shell y sirve network-first (datos frescos online,
-// funciona degradado sin conexión).
-const CACHE = 'mtg-tracker-v2';
-// /vidas va en el shell para poder llevar las vidas sin conexión
-const SHELL = ['/', '/vidas', '/static/css/main.css', '/static/js/main.js', '/static/icon.svg'];
+// Service worker: se sirve en /sw.js (no en /static/) para que su ámbito sea toda la web.
+// Estrategia network-first: online siempre datos frescos; sin conexión (o si la red no
+// responde en unos segundos) se usa la copia guardada. Solo se guardan los estáticos y
+// las páginas que funcionan sin servidor (/vidas, /dado); nunca el admin.
+const CACHE = 'mtg-tracker-v3';
+const PRECACHE = ['/vidas', '/dado', '/static/css/main.css', '/static/js/main.js', '/static/icon.svg'];
+const ESPERA_RED_MS = 4000;
+
+function cacheable(ruta) {
+  return ruta.startsWith('/static/') || ruta === '/vidas' || ruta === '/dado';
+}
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}));
+  // Cada recurso por separado: si uno falla, los demás se guardan igual
+  e.waitUntil(caches.open(CACHE).then((c) => Promise.allSettled(PRECACHE.map((u) => c.add(u)))));
   self.skipWaiting();
 });
 
@@ -17,18 +24,23 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(
-    fetch(e.request)
-      .then((resp) => {
-        // Guardar una copia de recursos estáticos (y del contador de vidas) para uso offline
-        const ruta = new URL(e.request.url).pathname;
-        if (resp.ok && (ruta.startsWith('/static/') || ruta === '/vidas')) {
-          const clone = resp.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, clone)).catch(() => {});
-        }
-        return resp;
-      })
-      .catch(() => caches.match(e.request))
-  );
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  // Otros orígenes (CDN de fuentes) y admin: los gestiona el navegador sin el SW
+  if (url.origin !== self.location.origin || url.pathname.startsWith('/admin')) return;
+
+  e.respondWith((async () => {
+    const red = fetch(req).then((resp) => {
+      if (resp.ok && cacheable(url.pathname)) {
+        const copia = resp.clone();
+        caches.open(CACHE).then((c) => c.put(req, copia)).catch(() => {});
+      }
+      return resp;
+    });
+    const guardada = await caches.match(req);
+    if (!guardada) return red; // sin copia: hay que esperar a la red
+    const espera = new Promise((resolve) => setTimeout(() => resolve(guardada), ESPERA_RED_MS));
+    return Promise.race([red, espera]).catch(() => guardada);
+  })());
 });

@@ -759,8 +759,8 @@ func ObtenerEstadisticasColores(db *sql.DB, jugadorID, temporadaID int) ([]model
 	return stats, nil
 }
 
-// ObtenerHeadToHead devuelve el historial entre dos jugadores en toda la historia
-func ObtenerHeadToHead(db *sql.DB, jugador1ID, jugador2ID int) (models.HeadToHead, error) {
+// ObtenerHeadToHead devuelve el balance entre dos jugadores en una temporada
+func ObtenerHeadToHead(db *sql.DB, jugador1ID, jugador2ID, temporadaID int) (models.HeadToHead, error) {
 	var h2h models.HeadToHead
 	var err error
 
@@ -773,22 +773,15 @@ func ObtenerHeadToHead(db *sql.DB, jugador1ID, jugador2ID int) (models.HeadToHea
 		return h2h, err
 	}
 
-	// Victorias de J1 sobre J2
+	// Victorias de cada uno sobre el otro en la temporada, en una sola consulta
 	err = db.QueryRow(`
-		SELECT COUNT(*)
+		SELECT
+			COUNT(*) FILTER (WHERE r.jugador_id = $1 AND v.rival_id = $2),
+			COUNT(*) FILTER (WHERE r.jugador_id = $2 AND v.rival_id = $1)
 		FROM victorias v
 		JOIN resultados r ON r.id = v.resultado_id
-		WHERE r.jugador_id = $1 AND v.rival_id = $2`, jugador1ID, jugador2ID).Scan(&h2h.VictoriasJ1)
-	if err != nil {
-		return h2h, err
-	}
-
-	// Victorias de J2 sobre J1
-	err = db.QueryRow(`
-		SELECT COUNT(*)
-		FROM victorias v
-		JOIN resultados r ON r.id = v.resultado_id
-		WHERE r.jugador_id = $1 AND v.rival_id = $2`, jugador2ID, jugador1ID).Scan(&h2h.VictoriasJ2)
+		JOIN sesiones s ON s.id = r.sesion_id
+		WHERE s.temporada_id = $3`, jugador1ID, jugador2ID, temporadaID).Scan(&h2h.VictoriasJ1, &h2h.VictoriasJ2)
 	if err != nil {
 		return h2h, err
 	}

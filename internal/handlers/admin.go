@@ -415,7 +415,18 @@ func (a *AppHandlers) AdminGuardarResultados(w http.ResponseWriter, r *http.Requ
 
 	// Obtener los jugadores seleccionados para esta sesión
 	jugadoresStr := r.FormValue("jugadores_sesion")
+	if jugadoresStr == "" && r.FormValue("vaciar") == "1" {
+		// Sin jugadores y confirmado en el formulario: se borran todos los resultados
+		if err := db.GuardarResultadosSesion(a.DB, sesionID, descripcion, enfrentamientoUnico, nil); err != nil {
+			log.Printf("Error al vaciar la sesión %d: %v", sesionID, err)
+			http.Error(w, "No se pudo vaciar la sesión (no se ha modificado nada).", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, fmt.Sprintf("/admin/sesion/%d/resultados", sesionID), http.StatusFound)
+		return
+	}
 	if jugadoresStr == "" {
+		// Sin jugadores y sin confirmar el vaciado: solo se guarda la descripción
 		if err := db.ActualizarDescripcionSesion(a.DB, sesionID, descripcion, enfrentamientoUnico); err != nil {
 			log.Println("Error al actualizar la sesión:", err)
 			http.Error(w, "Error al guardar la sesión", http.StatusInternalServerError)

@@ -3,14 +3,13 @@
 // Activar/desactivar estilo visual de checkboxes personalizados
 document.addEventListener('DOMContentLoaded', () => {
   // Registrar el service worker (PWA instalable + carga rápida)
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/static/sw.js').catch(() => {});
-  }
+  registrarServiceWorker();
 
   // Tablas ordenables (ranking) y modo matriz de resultados
   initSortableTables();
   initMatrizResultados();
   initEnfrentamientoUnico();
+  initVaciarSesion();
   initNavMenu();
 
   // Checkboxes personalizados (colores maná y rivales)
@@ -348,4 +347,42 @@ function copiarMatrizADetallada(matriz, detallada) {
   window.actualizarRivalesVisibles = original;
   copiarCampos(matriz, detallada);
   actualizarRivalesVisibles();
+}
+
+// === VACIAR UNA SESIÓN ===
+// Guardar sin ningún jugador marcado en una sesión que ya tenía resultados los borra
+// todos, pero solo tras confirmarlo: el formulario envía vaciar=1 y el servidor exige
+// ese campo, así un fallo del JS (lista vacía) nunca borra una sesión por accidente.
+function initVaciarSesion() {
+  document.querySelectorAll('form.form-guardar-resultados').forEach(function(form) {
+    form.addEventListener('submit', function(e) {
+      const lista = form.querySelector('[name="jugadores_sesion"]');
+      const previo = form.querySelector('input[name="vaciar"]');
+      if (previo) previo.remove();
+      if (!lista || lista.value || !form.dataset.teniaResultados) return;
+      if (!confirm('No has marcado a ningún jugador. ¿Borrar todos los resultados de esta sesión?')) {
+        e.preventDefault();
+        return;
+      }
+      const vaciar = document.createElement('input');
+      vaciar.type = 'hidden';
+      vaciar.name = 'vaciar';
+      vaciar.value = '1';
+      form.appendChild(vaciar);
+    });
+  });
+}
+
+// === SERVICE WORKER ===
+// Se registra en /sw.js para que controle toda la web. Las versiones antiguas lo
+// registraban en /static/sw.js (ámbito solo /static/): esa registración se elimina.
+function registrarServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(reg) {
+      const sw = reg.active || reg.waiting || reg.installing;
+      if (sw && sw.scriptURL.indexOf('/static/sw.js') !== -1) reg.unregister();
+    });
+  }).catch(function() {});
+  navigator.serviceWorker.register('/sw.js').catch(function() {});
 }

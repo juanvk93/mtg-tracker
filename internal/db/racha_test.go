@@ -57,3 +57,26 @@ func TestCalcularDesviacionWinRate(t *testing.T) {
 		}
 	}
 }
+
+func TestCalcularRachaRecord(t *testing.T) {
+	W, L, E := sesionVD{Victorias: 2}, sesionVD{Derrotas: 2}, sesionVD{Victorias: 1, Derrotas: 1}
+	casos := []struct {
+		nombre    string
+		historial []sesionVD // orden cronológico
+		wantN     int
+		wantTipo  string
+	}{
+		{"sin historial", nil, 0, ""},
+		{"solo empates", []sesionVD{E, E}, 0, ""},
+		{"el empate corta la racha", []sesionVD{W, E, W}, 1, "W"},
+		{"racha de 3 victorias", []sesionVD{L, W, W, W, L}, 3, "W"},
+		{"racha de derrotas más larga", []sesionVD{W, L, L, E, L}, 2, "L"},
+		{"igualdad: priman las victorias", []sesionVD{W, W, L, L}, 2, "W"},
+	}
+	for _, c := range casos {
+		got := calcularRachaRecord(c.historial)
+		if got.Longitud != c.wantN || got.Tipo != c.wantTipo {
+			t.Errorf("%s: got %d%s, want %d%s", c.nombre, got.Longitud, got.Tipo, c.wantN, c.wantTipo)
+		}
+	}
+}

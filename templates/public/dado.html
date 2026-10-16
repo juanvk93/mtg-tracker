@@ -117,6 +117,7 @@
   });
   document.querySelectorAll('.dado-cara-btn').forEach(function (b) {
     b.addEventListener('click', function () {
+      if (tirando) return; // cambiar de dado a mitad de tirada mezclaría caras y resultado
       caras = parseInt(b.dataset.caras, 10);
       try { localStorage.setItem('dadoCaras', caras); } catch (e) {}
       dibujar();

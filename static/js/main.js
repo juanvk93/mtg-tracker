@@ -106,17 +106,13 @@ function actualizarRivalesVisibles() {
     const label = input.closest('.checkbox-label');
     if (!label) return;
 
-    if (enSesion.includes(rivalID)) {
-      // El rival juega la sesión: visible
-      label.style.display = '';
-    } else {
-      // El rival no juega: ocultar y desmarcar
-      label.style.display = 'none';
-      if (input.checked) {
-        input.checked = false;
-        label.classList.remove('checked');
-      }
-    }
+    // Si el rival no juega se oculta y se marca como "fuera" (marcarEnfrentamientoUnicoDetallado
+    // la deshabilita, y una casilla deshabilitada no se envía). No se desmarca: si se le
+    // vuelve a añadir a la sesión por error, sus victorias siguen ahí.
+    const fuera = !enSesion.includes(rivalID);
+    label.style.display = fuera ? 'none' : '';
+    if (fuera) input.dataset.fuera = '1';
+    else delete input.dataset.fuera;
   });
 
   marcarEnfrentamientoUnicoDetallado();
@@ -130,9 +126,9 @@ function modoUnicoActivo(formId) {
   return !!(cb && cb.checked);
 }
 
-// Aplica el estado bloqueado/conflicto a un input según su victoria inversa
-function aplicarBloqueoInverso(input, inverso, activo, marcador) {
-  const inversoMarcado = !!(inverso && inverso.checked);
+// Aplica el estado bloqueado/conflicto a un input según si su victoria inversa cuenta
+// (marcada y de dos jugadores que juegan la sesión)
+function aplicarBloqueoInverso(input, inversoMarcado, activo, marcador) {
   const bloqueado = activo && inversoMarcado && !input.checked;
   const conflicto = activo && inversoMarcado && input.checked;
   if (bloqueado) input.disabled = true;
@@ -151,8 +147,9 @@ function marcarEnfrentamientoUnicoDetallado() {
     if (!label) return;
     const jugID = input.name.slice('victoria_'.length);
     const inverso = form.querySelector('input[name="victoria_' + input.value + '"][value="' + jugID + '"]');
-    input.disabled = false;
-    aplicarBloqueoInverso(input, inverso, activo, label);
+    input.disabled = !!input.dataset.fuera;
+    const inversoCuenta = !!(inverso && inverso.checked && !inverso.dataset.fuera);
+    aplicarBloqueoInverso(input, inversoCuenta, activo, label);
   });
 }
 
@@ -266,9 +263,8 @@ function initMatrizResultados() {
     form.querySelectorAll('.matriz-vict').forEach(function(inp) {
       const rowId = inp.closest('tr').dataset.jug;
       const colId = inp.value;
-      const ok = juega[rowId] && juega[colId];
-      inp.disabled = !ok;
-      if (!ok) inp.checked = false;
+      // Deshabilitada (no se envía) pero sin desmarcar, por si se vuelve a marcar "Jugó"
+      inp.disabled = !(juega[rowId] && juega[colId]);
     });
     // Segunda pasada (ya con todas las casillas actualizadas): bloquear victorias inversas
     form.querySelectorAll('.matriz-vict').forEach(function(inp) {
@@ -276,7 +272,8 @@ function initMatrizResultados() {
       const inverso = form.querySelector('tr[data-jug="' + inp.value + '"] .matriz-vict[value="' + rowId + '"]');
       const td = inp.closest('td');
       if (!td.dataset.titulo) td.dataset.titulo = '';
-      aplicarBloqueoInverso(inp, inverso, activo, td);
+      const inversoCuenta = !!(inverso && inverso.checked && !inverso.disabled);
+      aplicarBloqueoInverso(inp, inversoCuenta && !inp.disabled, activo, td);
     });
     // Colores y notas: habilitados solo si la fila juega
     form.querySelectorAll('.matriz-color-input, .matriz-notas').forEach(function(inp) {

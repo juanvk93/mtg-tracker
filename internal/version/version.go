@@ -2,7 +2,7 @@
 package version
 
 // Version actual de la aplicación
-const Version = "1.13.0"
+const Version = "1.14.0"
 
 // EntradaChangelog representa una entrada del registro de cambios
 type EntradaChangelog struct {
@@ -14,6 +14,20 @@ type EntradaChangelog struct {
 // Changelog devuelve la lista completa de cambios ordenada de más reciente a más antiguo
 func Changelog() []EntradaChangelog {
 	return []EntradaChangelog{
+		{
+			Version: "1.14.0",
+			Fecha:   "2026-10-16",
+			Cambios: []string{
+				"Gráfica de win rate: la línea de cada jugador empieza en su primera partida (antes salía al 0% en las sesiones previas)",
+				"Combinación favorita, verdugo y víctima ya no cambian entre recargas cuando hay empates; un rival al 50% no sale a la vez como verdugo y víctima",
+				"Rachas y listados estables aunque haya dos sesiones el mismo día",
+				"Mensajes claros al repetir un año o un nombre, al editar algo que ya no existe o al crear una sesión en una temporada cerrada; reabrir una temporada borrada ya no deja sin temporada activa",
+				"Colores de jugador validados, errores de base de datos registrados en vez de ignorados y 404 solo cuando algo no existe de verdad",
+				"Quitar a un jugador de la sesión por error ya no borra las victorias marcadas contra él",
+				"Dado: cambiar de dado durante la tirada ya no mezcla el resultado. Vidas: la cuenta de 5 en 5 se corta si el navegador pierde el dedo",
+				"Servidor con timeouts de conexión y Mana Font con versión fija",
+			},
+		},
 		{
 			Version: "1.13.0",
 			Fecha:   "2026-10-16",

@@ -2,6 +2,8 @@
 package handlers
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +17,21 @@ import (
 	"mtg-tracker/internal/db"
 	"mtg-tracker/internal/models"
 )
+
+// errorBD responde a un error de base de datos con un mensaje claro: 404 si el registro
+// no existe (msgNoExiste), 400 si choca con un UNIQUE (msgDuplicado) y 500 en el resto,
+// sin mostrar el error SQL en crudo. Un mensaje vacío trata ese caso como error genérico.
+func errorBD(w http.ResponseWriter, err error, accion, msgNoExiste, msgDuplicado string) {
+	switch {
+	case msgNoExiste != "" && errors.Is(err, sql.ErrNoRows):
+		http.Error(w, msgNoExiste, http.StatusNotFound)
+	case msgDuplicado != "" && db.EsDuplicado(err):
+		http.Error(w, msgDuplicado, http.StatusBadRequest)
+	default:
+		log.Printf("Error al %s: %v", accion, err)
+		http.Error(w, "Error al "+accion+". Inténtalo de nuevo.", http.StatusInternalServerError)
+	}
+}
 
 // ========== AUTENTICACIÓN ADMIN ==========
 
@@ -157,8 +174,7 @@ func (a *AppHandlers) AdminCrearTemporada(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := db.CrearTemporada(a.DB, anio); err != nil {
-		log.Println("Error al crear temporada:", err)
-		http.Error(w, "Error al crear temporada: "+err.Error(), http.StatusInternalServerError)
+		errorBD(w, err, "crear temporada", "", fmt.Sprintf("Ya existe una temporada del año %d.", anio))
 		return
 	}
 
@@ -180,7 +196,7 @@ func (a *AppHandlers) AdminCerrarTemporada(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := db.CerrarTemporada(a.DB, id); err != nil {
-		http.Error(w, "Error al cerrar temporada", http.StatusInternalServerError)
+		errorBD(w, err, "cerrar temporada", "La temporada no existe.", "")
 		return
 	}
 
@@ -202,8 +218,7 @@ func (a *AppHandlers) AdminReabrirTemporada(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := db.ReabrirTemporada(a.DB, id); err != nil {
-		log.Println("Error al reabrir temporada:", err)
-		http.Error(w, "Error al reabrir temporada", http.StatusInternalServerError)
+		errorBD(w, err, "reabrir temporada", "La temporada no existe (¿se borró en otra pestaña?). No se ha cambiado nada.", "")
 		return
 	}
 
@@ -294,6 +309,16 @@ func (a *AppHandlers) AdminCrearSesion(w http.ResponseWriter, r *http.Request) {
 	fecha, err := time.Parse("2006-01-02", fechaStr)
 	if err != nil {
 		http.Error(w, "Fecha inválida", http.StatusBadRequest)
+		return
+	}
+
+	temporada, err := db.ObtenerTemporada(a.DB, temporadaID)
+	if err != nil {
+		errorBD(w, err, "buscar temporada", "La temporada no existe.", "")
+		return
+	}
+	if temporada.Estado != "activa" {
+		http.Error(w, fmt.Sprintf("La temporada %d está cerrada: reábrela para añadir sesiones.", temporada.Anio), http.StatusBadRequest)
 		return
 	}
 
@@ -543,14 +568,11 @@ func (a *AppHandlers) AdminCrearJugador(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "El nombre es obligatorio", http.StatusBadRequest)
 		return
 	}
-	if color == "" {
-		color = "#6c757d"
-	}
+	color = models.NormalizarColor(color)
 	avatar = models.NormalizarAvatar(avatar)
 
 	if err := db.CrearJugador(a.DB, nombre, color, avatar); err != nil {
-		log.Println("Error al crear jugador:", err)
-		http.Error(w, "Error al crear jugador: "+err.Error(), http.StatusInternalServerError)
+		errorBD(w, err, "crear jugador", "", fmt.Sprintf("Ya existe un jugador llamado %q.", nombre))
 		return
 	}
 
@@ -571,8 +593,7 @@ func (a *AppHandlers) AdminToggleJugador(w http.ResponseWriter, r *http.Request)
 	}
 	activo := r.FormValue("activo") == "true"
 	if err := db.CambiarEstadoJugador(a.DB, id, activo); err != nil {
-		log.Println("Error al cambiar estado del jugador:", err)
-		http.Error(w, "Error al cambiar estado del jugador", http.StatusInternalServerError)
+		errorBD(w, err, "cambiar estado del jugador", "El jugador no existe.", "")
 		return
 	}
 	http.Redirect(w, r, "/admin", http.StatusFound)
@@ -621,10 +642,11 @@ func (a *AppHandlers) AdminActualizarJugador(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	color = models.NormalizarColor(color)
 	avatar = models.NormalizarAvatar(avatar)
 
 	if err := db.ActualizarJugador(a.DB, id, nombre, color, avatar); err != nil {
-		http.Error(w, "Error al actualizar jugador", http.StatusInternalServerError)
+		errorBD(w, err, "actualizar jugador", "El jugador no existe.", fmt.Sprintf("Ya existe otro jugador llamado %q.", nombre))
 		return
 	}
 

@@ -108,8 +108,18 @@ func main() {
 
 	// Iniciar servidor
 	addr := ":" + puerto
+	// Timeouts para que conexiones lentas o colgadas (p. ej. slowloris) no agoten el
+	// servidor. ReadTimeout deja margen para subir un backup de hasta 10 MB.
+	servidor := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 	log.Printf("🃏 MTG Tracker iniciado en http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := servidor.ListenAndServe(); err != nil {
 		log.Fatal("Error al iniciar el servidor:", err)
 	}
 }

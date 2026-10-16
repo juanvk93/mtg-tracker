@@ -197,16 +197,18 @@ func construirGraficaWinRate(filas []db.EvolucionFila) GraficaEvolucion {
 		for i := 0; i < n; i++ {
 			sumV += a.cumV[i]
 			sumD += a.cumD[i]
-			pct := 0.0
-			if sumV+sumD > 0 {
-				pct = float64(sumV) / float64(sumV+sumD) * 100
+			// Hasta su primera partida no hay win rate: la línea empieza ahí. Pintar un 0%
+			// en las sesiones anteriores parecería que el jugador se hundió.
+			if sumV+sumD == 0 {
+				continue
 			}
+			pct := float64(sumV) / float64(sumV+sumD) * 100
 			ultimoPct = pct
 			x, y := redondea(xDe(i)), redondea(yDe(pct))
-			s.Puntos = append(s.Puntos, PuntoSVG{X: x, Y: y})
-			if i > 0 {
+			if len(s.Puntos) > 0 {
 				b.WriteByte(' ')
 			}
+			s.Puntos = append(s.Puntos, PuntoSVG{X: x, Y: y})
 			fmt.Fprintf(&b, "%g,%g", x, y)
 		}
 		s.PuntosStr = b.String()

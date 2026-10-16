@@ -51,3 +51,30 @@ func TestConstruirGraficaEvolucion(t *testing.T) {
 		}
 	}
 }
+
+func TestGraficaWinRateEmpiezaEnLaPrimeraPartida(t *testing.T) {
+	f := func(d int) time.Time { return time.Date(2026, 1, d, 0, 0, 0, 0, time.UTC) }
+	filas := []db.EvolucionFila{
+		{JugadorID: 1, Nombre: "Ana", SesionID: 1, Fecha: f(1), VictoriasSesion: 1},
+		{JugadorID: 2, Nombre: "Bea", SesionID: 1, Fecha: f(1), DerrotasSesion: 1},
+		{JugadorID: 1, Nombre: "Ana", SesionID: 2, Fecha: f(2), VictoriasSesion: 1},
+		{JugadorID: 2, Nombre: "Bea", SesionID: 2, Fecha: f(2), DerrotasSesion: 1},
+		// Carla se incorpora en la sesión 3
+		{JugadorID: 3, Nombre: "Carla", SesionID: 3, Fecha: f(3), VictoriasSesion: 1},
+		{JugadorID: 1, Nombre: "Ana", SesionID: 3, Fecha: f(3), DerrotasSesion: 1},
+	}
+	g := construirGraficaWinRate(filas)
+	for _, s := range g.Series {
+		if s.Jugador.Nombre == "Carla" {
+			if len(s.Puntos) != 1 {
+				t.Fatalf("Carla debería tener 1 punto (solo la sesión 3), tiene %d", len(s.Puntos))
+			}
+			if s.Puntos[0].X != g.EjeX[2].X {
+				t.Errorf("el punto de Carla debería estar en la sesión 3")
+			}
+			if s.Total != 100 {
+				t.Errorf("win rate final de Carla = %d, quiero 100", s.Total)
+			}
+		}
+	}
+}

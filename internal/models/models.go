@@ -334,3 +334,18 @@ func RenderAvatar(avatar string) template.HTML {
 	}
 	return template.HTML(template.HTMLEscapeString(avatar))
 }
+
+// ColorPorDefecto es el color identificativo de un jugador sin color válido
+const ColorPorDefecto = "#6c757d"
+
+var reColorHex = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+// NormalizarColor deja solo colores hex "#rrggbb" (lo que envía <input type="color">).
+// Un color vacío o raro rompería los estilos que le añaden transparencia ("{{.Color}}18").
+func NormalizarColor(color string) string {
+	color = strings.TrimSpace(color)
+	if reColorHex.MatchString(color) {
+		return strings.ToLower(color)
+	}
+	return ColorPorDefecto
+}

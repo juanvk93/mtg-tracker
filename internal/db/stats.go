@@ -4,13 +4,29 @@ package db
 
 import (
 	"database/sql"
+	"log"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"mtg-tracker/internal/models"
 )
+
+// claveWUBRG convierte una combinación ("B,U") en una clave que ordena según WUBRG
+// (con menos colores primero), para desempatar de forma estable.
+func claveWUBRG(combinacion string) string {
+	pos := map[string]byte{"W": '1', "U": '2', "B": '3', "R": '4', "G": '5'}
+	var b []byte
+	for _, c := range strings.Split(combinacion, ",") {
+		if p, ok := pos[c]; ok {
+			b = append(b, p)
+		}
+	}
+	sort.Slice(b, func(i, j int) bool { return b[i] < b[j] })
+	return strconv.Itoa(len(b)) + string(b)
+}
 
 // ObtenerCombinacionTopJugador devuelve la combinación de colores más frecuente
 // de un jugador en una temporada. Devuelve nil si no hay datos.
@@ -63,11 +79,12 @@ func ObtenerCombinacionTopJugador(db *sql.DB, jugadorID, temporadaID int) (*mode
 		return nil, nil
 	}
 
-	// Encontrar la combinación con más usos
+	// Encontrar la combinación con más usos. En empate gana la primera en orden WUBRG
+	// (el orden de recorrido de un map es aleatorio y cambiaría entre recargas).
 	var topClave string
 	var topCount int
 	for k, n := range combinaciones {
-		if n > topCount {
+		if n > topCount || (n == topCount && claveWUBRG(k) < claveWUBRG(topClave)) {
 			topCount = n
 			topClave = k
 		}
@@ -132,6 +149,10 @@ func ObtenerDesempenoJugador(db *sql.DB, jugadorID, temporadaID int) (ganados in
 		}
 		victPorSesion[sid][jid] = v
 	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return 0, 0, "flat", err
+	}
 	rows.Close()
 
 	nSes, sumaPos := 0, 0
@@ -169,21 +190,24 @@ func ObtenerDesempenoJugador(db *sql.DB, jugadorID, temporadaID int) (ganados in
 		FROM sesiones s
 		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $1
 		WHERE s.temporada_id = $2
-		ORDER BY s.fecha ASC`, jugadorID, temporadaID)
+		ORDER BY s.fecha ASC, s.id ASC`, jugadorID, temporadaID)
 	if err != nil {
-		return ganados, posMedia, "flat", nil
+		return ganados, posMedia, "flat", err
 	}
+	defer wrRows.Close()
 	var wr []float64
 	for wrRows.Next() {
 		var v, d int
 		if err := wrRows.Scan(&v, &d); err != nil {
-			break
+			return ganados, posMedia, "flat", err
 		}
 		if v+d > 0 {
 			wr = append(wr, float64(v)/float64(v+d)*100)
 		}
 	}
-	wrRows.Close()
+	if err := wrRows.Err(); err != nil {
+		return ganados, posMedia, "flat", err
+	}
 	return ganados, posMedia, calcularTendencia(wr), nil
 }
 
@@ -230,7 +254,7 @@ func ObtenerMejorSesionJugador(db *sql.DB, jugadorID, temporadaID int) (*models.
 		FROM sesiones s
 		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $3
 		WHERE s.temporada_id = $4
-		ORDER BY s.fecha DESC`, jugadorID, jugadorID, jugadorID, temporadaID)
+		ORDER BY s.fecha DESC, s.id DESC`, jugadorID, jugadorID, jugadorID, temporadaID)
 	if err != nil {
 		return nil, err
 	}
@@ -249,6 +273,9 @@ func ObtenerMejorSesionJugador(db *sql.DB, jugadorID, temporadaID int) (*models.
 			mejor = &copia
 		}
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 
 	// Si todas las sesiones tienen 0 victorias, no hay "mejor"
 	if mejor != nil && mejor.Victorias == 0 {
@@ -256,84 +283,6 @@ func ObtenerMejorSesionJugador(db *sql.DB, jugadorID, temporadaID int) (*models.
 	}
 
 	return mejor, nil
-}
-
-// ObtenerRivalMasFrecuente devuelve el rival contra quien más ha jugado un jugador
-// en una temporada. Devuelve nil si no hay datos.
-func ObtenerRivalMasFrecuente(db *sql.DB, jugadorID, temporadaID int) (*models.RivalFrecuente, error) {
-	// Para cada otro jugador, contar partidas (victorias + derrotas) contra él
-	tipoJugador := make(map[int]*models.RivalFrecuente)
-
-	// Victorias del jugador sobre cada rival
-	rows, err := db.Query(`
-		SELECT v.rival_id, COUNT(*)
-		FROM victorias v
-		JOIN resultados r ON r.id = v.resultado_id
-		JOIN sesiones s ON s.id = r.sesion_id
-		WHERE r.jugador_id = $1 AND s.temporada_id = $2
-		GROUP BY v.rival_id`, jugadorID, temporadaID)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var rivalID, count int
-		rows.Scan(&rivalID, &count)
-		if tipoJugador[rivalID] == nil {
-			tipoJugador[rivalID] = &models.RivalFrecuente{}
-		}
-		tipoJugador[rivalID].Victorias = count
-	}
-	rows.Close()
-
-	// Derrotas del jugador contra cada rival
-	rows, err = db.Query(`
-		SELECT r.jugador_id, COUNT(*)
-		FROM victorias v
-		JOIN resultados r ON r.id = v.resultado_id
-		JOIN sesiones s ON s.id = r.sesion_id
-		WHERE v.rival_id = $1 AND s.temporada_id = $2
-		GROUP BY r.jugador_id`, jugadorID, temporadaID)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var rivalID, count int
-		rows.Scan(&rivalID, &count)
-		if tipoJugador[rivalID] == nil {
-			tipoJugador[rivalID] = &models.RivalFrecuente{}
-		}
-		tipoJugador[rivalID].Derrotas = count
-	}
-	rows.Close()
-
-	if len(tipoJugador) == 0 {
-		return nil, nil
-	}
-
-	// Encontrar el rival con más partidas totales
-	var topRivalID int
-	var topPartidas int
-	for rid, rf := range tipoJugador {
-		total := rf.Victorias + rf.Derrotas
-		if total > topPartidas {
-			topPartidas = total
-			topRivalID = rid
-		}
-	}
-
-	if topRivalID == 0 {
-		return nil, nil
-	}
-
-	rival, err := ObtenerJugador(db, topRivalID)
-	if err != nil {
-		return nil, err
-	}
-
-	rf := tipoJugador[topRivalID]
-	rf.Rival = rival
-	rf.Partidas = rf.Victorias + rf.Derrotas
-	return rf, nil
 }
 
 // ObtenerRachaRecordJugador devuelve la mejor racha histórica de un jugador en una temporada.
@@ -449,47 +398,43 @@ func ObtenerDistribucionColoresGrupo(db *sql.DB, temporadaID int) ([]models.Dist
 func ObtenerVerdugoYVictima(db *sql.DB, jugadorID, temporadaID int) (*models.RivalConWinRate, *models.RivalConWinRate, error) {
 	rivales := make(map[int]*models.RivalConWinRate)
 
-	// Victorias del jugador sobre cada rival
-	rows, err := db.Query(`
+	// Victorias del jugador sobre cada rival y derrotas (victorias de cada rival sobre él)
+	contar := func(consulta string, sumar func(r *models.RivalConWinRate, n int)) error {
+		rows, err := db.Query(consulta, jugadorID, temporadaID)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var rid, n int
+			if err := rows.Scan(&rid, &n); err != nil {
+				return err
+			}
+			if rivales[rid] == nil {
+				rivales[rid] = &models.RivalConWinRate{}
+			}
+			sumar(rivales[rid], n)
+		}
+		return rows.Err()
+	}
+	if err := contar(`
 		SELECT v.rival_id, COUNT(*)
 		FROM victorias v
 		JOIN resultados r ON r.id = v.resultado_id
 		JOIN sesiones s ON s.id = r.sesion_id
 		WHERE r.jugador_id = $1 AND s.temporada_id = $2
-		GROUP BY v.rival_id`, jugadorID, temporadaID)
-	if err != nil {
+		GROUP BY v.rival_id`, func(r *models.RivalConWinRate, n int) { r.Victorias = n }); err != nil {
 		return nil, nil, err
 	}
-	for rows.Next() {
-		var rid, count int
-		rows.Scan(&rid, &count)
-		if rivales[rid] == nil {
-			rivales[rid] = &models.RivalConWinRate{}
-		}
-		rivales[rid].Victorias = count
-	}
-	rows.Close()
-
-	// Derrotas (rivales que ganaron al jugador)
-	rows, err = db.Query(`
+	if err := contar(`
 		SELECT r.jugador_id, COUNT(*)
 		FROM victorias v
 		JOIN resultados r ON r.id = v.resultado_id
 		JOIN sesiones s ON s.id = r.sesion_id
 		WHERE v.rival_id = $1 AND s.temporada_id = $2
-		GROUP BY r.jugador_id`, jugadorID, temporadaID)
-	if err != nil {
+		GROUP BY r.jugador_id`, func(r *models.RivalConWinRate, n int) { r.Derrotas = n }); err != nil {
 		return nil, nil, err
 	}
-	for rows.Next() {
-		var rid, count int
-		rows.Scan(&rid, &count)
-		if rivales[rid] == nil {
-			rivales[rid] = &models.RivalConWinRate{}
-		}
-		rivales[rid].Derrotas = count
-	}
-	rows.Close()
 
 	if len(rivales) == 0 {
 		return nil, nil, nil
@@ -505,49 +450,55 @@ func ObtenerVerdugoYVictima(db *sql.DB, jugadorID, temporadaID int) (*models.Riv
 		mapaJugadores[j.ID] = j
 	}
 
-	// Calcular win rate y quedarnos con verdugo (peor WR) y víctima (mejor WR)
-	const minPartidas = 2 // umbral mínimo para considerar a un rival
-	var verdugo, victima *models.RivalConWinRate
-	var peorWR, mejorWR float64 = 101, -1
-
+	// Candidatos: rivales activos con un mínimo de partidas
+	const minPartidas = 2
+	var candidatos []models.RivalConWinRate
 	for rid, rf := range rivales {
 		rf.Partidas = rf.Victorias + rf.Derrotas
-		if rf.Partidas < minPartidas {
-			continue
-		}
-		rf.WinRate = float64(rf.Victorias) / float64(rf.Partidas) * 100
-
 		rival, ok := mapaJugadores[rid]
-		if !ok || !rival.Activo {
+		if rf.Partidas < minPartidas || !ok || !rival.Activo {
 			continue // los jugadores inactivos no aparecen como verdugo/víctima
 		}
+		rf.WinRate = float64(rf.Victorias) / float64(rf.Partidas) * 100
 		rf.Rival = rival
-
-		// Verdugo: peor win rate (este rival "le da palos")
-		if rf.WinRate < peorWR {
-			peorWR = rf.WinRate
-			copia := *rf
-			verdugo = &copia
-		}
-		// Víctima: mejor win rate (a este rival "le gana siempre")
-		if rf.WinRate > mejorWR {
-			mejorWR = rf.WinRate
-			copia := *rf
-			victima = &copia
-		}
+		candidatos = append(candidatos, *rf)
 	}
-
-	// Si hay un único rival, no tiene sentido distinguir verdugo y víctima
-	if verdugo != nil && victima != nil && verdugo.Rival.ID == victima.Rival.ID {
-		// Si solo hay un rival, lo asignamos según su win rate
-		if verdugo.WinRate < 50 {
-			victima = nil
-		} else if verdugo.WinRate > 50 {
-			verdugo = nil
-		}
-	}
-
+	verdugo, victima := elegirVerdugoYVictima(candidatos)
 	return verdugo, victima, nil
+}
+
+// elegirVerdugoYVictima elige el rival con peor win rate (verdugo, "le da palos") y el
+// de mejor win rate (víctima). Empates de win rate: gana quien tiene más partidas y
+// después el nombre, para que el resultado no cambie entre recargas. Si los dos son el
+// mismo rival, se asigna según su win rate (y a ninguno si está exactamente al 50%).
+func elegirVerdugoYVictima(candidatos []models.RivalConWinRate) (*models.RivalConWinRate, *models.RivalConWinRate) {
+	var verdugo, victima *models.RivalConWinRate
+	for i := range candidatos {
+		c := &candidatos[i]
+		desempata := func(otro *models.RivalConWinRate) bool {
+			if c.Partidas != otro.Partidas {
+				return c.Partidas > otro.Partidas
+			}
+			return c.Rival.Nombre < otro.Rival.Nombre
+		}
+		if verdugo == nil || c.WinRate < verdugo.WinRate || (c.WinRate == verdugo.WinRate && desempata(verdugo)) {
+			verdugo = c
+		}
+		if victima == nil || c.WinRate > victima.WinRate || (c.WinRate == victima.WinRate && desempata(victima)) {
+			victima = c
+		}
+	}
+	if verdugo != nil && victima != nil && verdugo.Rival.ID == victima.Rival.ID {
+		switch {
+		case verdugo.WinRate < 50:
+			victima = nil
+		case verdugo.WinRate > 50:
+			verdugo = nil
+		default:
+			verdugo, victima = nil, nil
+		}
+	}
+	return verdugo, victima
 }
 
 // ObtenerDistribucionDraftsJugador cuenta cuántos drafts ha hecho el jugador
@@ -608,7 +559,8 @@ func ObtenerWinRatesPorSesion(db *sql.DB, jugadorID, temporadaID int) ([]float64
 				WHERE v.rival_id = $2 AND r2.sesion_id = s.id) AS derr
 		FROM sesiones s
 		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $3
-		WHERE s.temporada_id = $4`, jugadorID, jugadorID, jugadorID, temporadaID)
+		WHERE s.temporada_id = $4
+		ORDER BY s.fecha ASC, s.id ASC`, jugadorID, jugadorID, jugadorID, temporadaID)
 	if err != nil {
 		return nil, err
 	}
@@ -617,14 +569,18 @@ func ObtenerWinRatesPorSesion(db *sql.DB, jugadorID, temporadaID int) ([]float64
 	var winRates []float64
 	for rows.Next() {
 		var v, d int
-		rows.Scan(&v, &d)
+		if err := rows.Scan(&v, &d); err != nil {
+			return nil, err
+		}
 		total := v + d
 		if total == 0 {
 			continue
 		}
 		winRates = append(winRates, float64(v)/float64(total)*100)
 	}
-
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return winRates, nil
 }
 
@@ -879,7 +835,7 @@ func ObtenerHistorialJugador(db *sql.DB, jugadorID, temporadaID int) ([]models.D
 		FROM sesiones s
 		JOIN resultados r ON r.sesion_id = s.id AND r.jugador_id = $1
 		WHERE s.temporada_id = $2
-		ORDER BY s.fecha DESC`, jugadorID, temporadaID)
+		ORDER BY s.fecha DESC, s.id DESC`, jugadorID, temporadaID)
 	if err != nil {
 		return nil, err
 	}
@@ -1026,54 +982,69 @@ func ObtenerColoresTemporada(db *sql.DB, temporadaID int) ([]models.EstadisticaC
 func ObtenerEstadisticasCompletasJugador(db *sql.DB, jugador models.Jugador, temporadaID int) (models.EstadisticasJugador, error) {
 	stats := models.EstadisticasJugador{Jugador: jugador}
 
-	if c, err := ObtenerEstadisticasColores(db, jugador.ID, temporadaID); err == nil {
+	if c, err := ObtenerEstadisticasColores(db, jugador.ID, temporadaID); sinError("colores", jugadorStatsID(jugador.ID), err) {
 		stats.Colores = c
 	}
-	if c, err := ObtenerCombinacionTopJugador(db, jugador.ID, temporadaID); err == nil {
+	if c, err := ObtenerCombinacionTopJugador(db, jugador.ID, temporadaID); sinError("combinación favorita", jugadorStatsID(jugador.ID), err) {
 		stats.CombinacionTop = c
 	}
-	if m, err := ObtenerMejorSesionJugador(db, jugador.ID, temporadaID); err == nil {
+	if m, err := ObtenerMejorSesionJugador(db, jugador.ID, temporadaID); sinError("mejor sesión", jugadorStatsID(jugador.ID), err) {
 		stats.MejorSesion = m
 	}
-	if v, vc, err := ObtenerVerdugoYVictima(db, jugador.ID, temporadaID); err == nil {
+	if v, vc, err := ObtenerVerdugoYVictima(db, jugador.ID, temporadaID); sinError("verdugo y víctima", jugadorStatsID(jugador.ID), err) {
 		stats.Verdugo = v
 		stats.Victima = vc
 	}
-	if r, err := ObtenerRachaRecordJugador(db, jugador.ID, temporadaID); err == nil {
+	if r, err := ObtenerRachaRecordJugador(db, jugador.ID, temporadaID); sinError("racha récord", jugadorStatsID(jugador.ID), err) {
 		stats.RachaRecord = r
 	}
-	if d, err := ObtenerDistribucionDraftsJugador(db, jugador.ID, temporadaID); err == nil {
+	if d, err := ObtenerDistribucionDraftsJugador(db, jugador.ID, temporadaID); sinError("tipos de draft", jugadorStatsID(jugador.ID), err) {
 		stats.DistribucionDrafts = d
 	}
 
 	// Sesiones jugadas y promedio de victorias
-	if n, err := ContarSesionesJugadasPorJugador(db, jugador.ID, temporadaID); err == nil {
+	if n, err := ContarSesionesJugadasPorJugador(db, jugador.ID, temporadaID); sinError("sesiones jugadas", jugadorStatsID(jugador.ID), err) {
 		stats.SesionesJugadas = n
 		if n > 0 {
 			// Total victorias en la temporada
 			var totalVict int
-			db.QueryRow(`
+			if err := db.QueryRow(`
 				SELECT COUNT(*)
 				FROM victorias v
 				JOIN resultados r ON r.id = v.resultado_id
 				JOIN sesiones s ON s.id = r.sesion_id
 				WHERE r.jugador_id = $1 AND s.temporada_id = $2`,
-				jugador.ID, temporadaID).Scan(&totalVict)
-			stats.PromedioVictorias = float64(totalVict) / float64(n)
+				jugador.ID, temporadaID).Scan(&totalVict); sinError("promedio de victorias", jugadorStatsID(jugador.ID), err) {
+				stats.PromedioVictorias = float64(totalVict) / float64(n)
+			}
 		}
 	}
 
 	// Desviación típica del win rate por sesión
-	if wrs, err := ObtenerWinRatesPorSesion(db, jugador.ID, temporadaID); err == nil {
+	if wrs, err := ObtenerWinRatesPorSesion(db, jugador.ID, temporadaID); sinError("win rates por sesión", jugadorStatsID(jugador.ID), err) {
 		stats.DesviacionWinRate = CalcularDesviacionWinRate(wrs)
 	}
 
 	// Drafts ganados, posición media y tendencia
-	if g, pm, t, err := ObtenerDesempenoJugador(db, jugador.ID, temporadaID); err == nil {
+	if g, pm, t, err := ObtenerDesempenoJugador(db, jugador.ID, temporadaID); sinError("desempeño", jugadorStatsID(jugador.ID), err) {
 		stats.DraftsGanados = g
 		stats.PosicionMedia = pm
 		stats.Tendencia = t
 	}
 
 	return stats, nil
+}
+
+// jugadorStatsID solo da contexto legible al log de sinError
+type jugadorStatsID int
+
+// sinError devuelve true si no hay error y, si lo hay, lo registra en el log. Las
+// estadísticas por jugador se calculan "lo que se pueda": si una parte falla se muestra
+// el resto, pero el fallo no debe desaparecer sin rastro.
+func sinError(parte string, jugador jugadorStatsID, err error) bool {
+	if err != nil {
+		log.Printf("estadísticas del jugador %d (%s): %v", jugador, parte, err)
+		return false
+	}
+	return true
 }

@@ -3,11 +3,16 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
-	"mtg-tracker/internal/models"
+	"log"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgconn"
+
+	"mtg-tracker/internal/models"
 )
 
 // ========== JUGADORES ==========
@@ -28,6 +33,9 @@ func ObtenerJugadores(db *sql.DB) ([]models.Jugador, error) {
 		}
 		jugadores = append(jugadores, j)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return jugadores, nil
 }
 
@@ -47,6 +55,9 @@ func ObtenerJugadoresActivos(db *sql.DB) ([]models.Jugador, error) {
 		}
 		jugadores = append(jugadores, j)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return jugadores, nil
 }
 
@@ -58,10 +69,32 @@ func ObtenerJugador(db *sql.DB, id int) (models.Jugador, error) {
 	return j, err
 }
 
+// EsDuplicado indica si el error es una violación de UNIQUE (SQLSTATE 23505), p. ej. un
+// nombre de jugador o un año de temporada repetidos
+func EsDuplicado(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+}
+
+// unaFila convierte un UPDATE que no afectó a ninguna fila en sql.ErrNoRows, para que el
+// handler responda 404 en vez de fingir que la operación funcionó
+func unaFila(res sql.Result, err error) error {
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 // CambiarEstadoJugador activa o desactiva un jugador
 func CambiarEstadoJugador(db *sql.DB, id int, activo bool) error {
-	_, err := db.Exec(`UPDATE jugadores SET activo=$1 WHERE id=$2`, activo, id)
-	return err
+	return unaFila(db.Exec(`UPDATE jugadores SET activo=$1 WHERE id=$2`, activo, id))
 }
 
 // CrearJugador inserta un nuevo jugador
@@ -73,9 +106,8 @@ func CrearJugador(db *sql.DB, nombre, color, avatar string) error {
 
 // ActualizarJugador actualiza los datos de un jugador
 func ActualizarJugador(db *sql.DB, id int, nombre, color, avatar string) error {
-	_, err := db.Exec(`UPDATE jugadores SET nombre=$1, color=$2, avatar=$3 WHERE id=$4`,
-		nombre, color, avatar, id)
-	return err
+	return unaFila(db.Exec(`UPDATE jugadores SET nombre=$1, color=$2, avatar=$3 WHERE id=$4`,
+		nombre, color, avatar, id))
 }
 
 // ========== TEMPORADAS ==========
@@ -95,6 +127,9 @@ func ObtenerTemporadas(db *sql.DB) ([]models.Temporada, error) {
 			return nil, err
 		}
 		temporadas = append(temporadas, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return temporadas, nil
 }
@@ -132,8 +167,7 @@ func CrearTemporada(db *sql.DB, anio int) error {
 
 // CerrarTemporada cambia el estado de una temporada a 'cerrada'
 func CerrarTemporada(db *sql.DB, id int) error {
-	_, err := db.Exec(`UPDATE temporadas SET estado='cerrada' WHERE id=$1`, id)
-	return err
+	return unaFila(db.Exec(`UPDATE temporadas SET estado='cerrada' WHERE id=$1`, id))
 }
 
 // ReabrirTemporada cambia el estado de una temporada a 'activa'.
@@ -145,15 +179,14 @@ func ReabrirTemporada(db *sql.DB, id int) error {
 	}
 	defer tx.Rollback()
 
-	// Cerrar cualquier otra temporada activa que no sea esta
-	_, err = tx.Exec(`UPDATE temporadas SET estado='cerrada' WHERE estado='activa' AND id <> $1`, id)
-	if err != nil {
+	// Reabrir la temporada solicitada. Si no existe (p. ej. se borró en otra pestaña) se
+	// aborta antes de cerrar la activa, para no quedarnos sin ninguna temporada activa.
+	if err := unaFila(tx.Exec(`UPDATE temporadas SET estado='activa' WHERE id=$1`, id)); err != nil {
 		return err
 	}
 
-	// Reabrir la temporada solicitada
-	_, err = tx.Exec(`UPDATE temporadas SET estado='activa' WHERE id=$1`, id)
-	if err != nil {
+	// Cerrar cualquier otra temporada activa que no sea esta
+	if _, err := tx.Exec(`UPDATE temporadas SET estado='cerrada' WHERE estado='activa' AND id <> $1`, id); err != nil {
 		return err
 	}
 
@@ -182,6 +215,10 @@ func BorrarTemporada(db *sql.DB, id int) error {
 			return err
 		}
 		sesionIDs = append(sesionIDs, sid)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
 	}
 	rows.Close()
 
@@ -225,7 +262,7 @@ func ObtenerSesiones(db *sql.DB, temporadaID int) ([]models.Sesion, error) {
 		SELECT id, temporada_id, fecha, descripcion 
 		FROM sesiones 
 		WHERE temporada_id = $1 
-		ORDER BY fecha DESC`, temporadaID)
+		ORDER BY fecha DESC, id DESC`, temporadaID)
 	if err != nil {
 		return nil, err
 	}
@@ -240,6 +277,9 @@ func ObtenerSesiones(db *sql.DB, temporadaID int) ([]models.Sesion, error) {
 		}
 		sesiones = append(sesiones, s)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return sesiones, nil
 }
 
@@ -248,7 +288,7 @@ func ObtenerTodasLasSesiones(db *sql.DB) ([]models.Sesion, error) {
 	rows, err := db.Query(`
 		SELECT id, temporada_id, fecha, descripcion 
 		FROM sesiones 
-		ORDER BY fecha DESC`)
+		ORDER BY fecha DESC, id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -261,6 +301,9 @@ func ObtenerTodasLasSesiones(db *sql.DB) ([]models.Sesion, error) {
 			return nil, err
 		}
 		sesiones = append(sesiones, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return sesiones, nil
 }
@@ -299,6 +342,7 @@ func ObtenerGanadorSesion(database *sql.DB, sesionID int) *GanadorSesion {
 		GROUP BY r.jugador_id, j.nombre, j.color, j.avatar
 		ORDER BY vict DESC`, sesionID)
 	if err != nil {
+		log.Printf("ganador de la sesión %d: %v", sesionID, err)
 		return nil
 	}
 	defer rows.Close()
@@ -310,8 +354,15 @@ func ObtenerGanadorSesion(database *sql.DB, sesionID int) *GanadorSesion {
 	var lista []jugadorVict
 	for rows.Next() {
 		var jv jugadorVict
-		rows.Scan(&jv.jugador.ID, &jv.jugador.Nombre, &jv.jugador.Color, &jv.jugador.Avatar, &jv.victorias)
+		if err := rows.Scan(&jv.jugador.ID, &jv.jugador.Nombre, &jv.jugador.Color, &jv.jugador.Avatar, &jv.victorias); err != nil {
+			log.Printf("ganador de la sesión %d: %v", sesionID, err)
+			return nil
+		}
 		lista = append(lista, jv)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("ganador de la sesión %d: %v", sesionID, err)
+		return nil
 	}
 
 	if len(lista) == 0 {
@@ -550,7 +601,7 @@ func ObtenerRanking(db *sql.DB, temporadaID int) ([]models.FilaRanking, error) {
 		JOIN sesiones s ON s.id = r.sesion_id
 		JOIN jugadores j ON j.id = r.jugador_id
 		WHERE s.temporada_id = $1
-		ORDER BY j.nombre, s.fecha DESC`, temporadaID)
+		ORDER BY j.nombre, s.fecha DESC, s.id DESC`, temporadaID)
 	if err != nil {
 		return nil, err
 	}
@@ -794,120 +845,77 @@ func ObtenerHeadToHead(db *sql.DB, jugador1ID, jugador2ID, temporadaID int) (mod
 // Para cada color: suma las victorias y derrotas de todos los jugadores que lo usaron.
 // Win rate = victorias totales / (victorias + derrotas totales) × 100.
 func ObtenerColorMasWinRate(db *sql.DB, temporadaID int) (string, float64) {
-	colores := []string{"W", "U", "B", "R", "G"}
-	mejorColor := ""
-	mejorWR := -1.0
-
-	for _, color := range colores {
-		// Obtener todos los resultados donde se jugó este color en la temporada
-		rows, err := db.Query(`
-			SELECT r.id, r.jugador_id, r.sesion_id
-			FROM resultados r
-			JOIN colores_jugados cj ON cj.resultado_id = r.id
+	// Por cada resultado con el color: sus victorias (V) y derrotas (victorias de otros
+	// sobre ese jugador en la misma sesión). Se exige que el color lo hayan jugado al menos
+	// 2 jugadores DISTINTOS y un mínimo de 4 partidas, para que el KPI sea representativo.
+	rows, err := db.Query(`
+		WITH por_resultado AS (
+			SELECT cj.color, r.jugador_id,
+				(SELECT COUNT(*) FROM victorias v WHERE v.resultado_id = r.id) AS vict,
+				(SELECT COUNT(*) FROM victorias v2
+					JOIN resultados r2 ON r2.id = v2.resultado_id
+					WHERE r2.sesion_id = r.sesion_id AND v2.rival_id = r.jugador_id) AS derr
+			FROM colores_jugados cj
+			JOIN resultados r ON r.id = cj.resultado_id
 			JOIN sesiones s ON s.id = r.sesion_id
-			WHERE cj.color = $1 AND s.temporada_id = $2`, color, temporadaID)
-		if err != nil {
-			continue
+			WHERE s.temporada_id = $1
+		)
+		SELECT color, SUM(vict), SUM(derr)
+		FROM por_resultado
+		GROUP BY color
+		HAVING COUNT(DISTINCT jugador_id) >= 2 AND SUM(vict) + SUM(derr) >= 4
+		ORDER BY POSITION(color IN 'WUBRG')`, temporadaID)
+	if err != nil {
+		log.Printf("color con más win rate de la temporada %d: %v", temporadaID, err)
+		return "", -1
+	}
+	defer rows.Close()
+
+	mejorColor, mejorWR := "", -1.0
+	for rows.Next() {
+		var color string
+		var v, d int
+		if err := rows.Scan(&color, &v, &d); err != nil {
+			log.Printf("color con más win rate de la temporada %d: %v", temporadaID, err)
+			return "", -1
 		}
-
-		type par struct{ resultadoID, jugadorID, sesionID int }
-		var pares []par
-		for rows.Next() {
-			var p par
-			rows.Scan(&p.resultadoID, &p.jugadorID, &p.sesionID)
-			pares = append(pares, p)
-		}
-		rows.Close()
-
-		if len(pares) < 2 { // mínimo 2 jugadores usando el color
-			continue
-		}
-
-		var victorias, derrotas int
-		for _, p := range pares {
-			// Victorias de este jugador en esta sesión
-			var v int
-			db.QueryRow(`SELECT COUNT(*) FROM victorias WHERE resultado_id=$1`, p.resultadoID).Scan(&v)
-			victorias += v
-
-			// Derrotas de este jugador en esta sesión
-			var d int
-			db.QueryRow(`
-				SELECT COUNT(*)
-				FROM victorias v2
-				JOIN resultados r2 ON r2.id = v2.resultado_id
-				WHERE r2.sesion_id = $1 AND v2.rival_id = $2`,
-				p.sesionID, p.jugadorID).Scan(&d)
-			derrotas += d
-		}
-
-		total := victorias + derrotas
-		if total < 4 {
-			continue
-		}
-
-		wr := float64(victorias) / float64(total) * 100
-		if wr > mejorWR {
-			mejorWR = wr
-			mejorColor = color
+		if wr := float64(v) / float64(v+d) * 100; wr > mejorWR {
+			mejorColor, mejorWR = color, wr
 		}
 	}
-
+	if err := rows.Err(); err != nil {
+		log.Printf("color con más win rate de la temporada %d: %v", temporadaID, err)
+		return "", -1
+	}
 	return mejorColor, mejorWR
 }
 
 // ObtenerColorMasJugado devuelve el color más frecuente del grupo en la temporada
 func ObtenerColorMasJugado(db *sql.DB, temporadaID int) string {
-	colores := []string{"W", "U", "B", "R", "G"}
-	mejorColor := ""
-	maxUsos := 0
-
-	for _, color := range colores {
-		var usos int
-		db.QueryRow(`
-			SELECT COUNT(cj.id)
-			FROM colores_jugados cj
-			JOIN resultados r ON r.id = cj.resultado_id
-			JOIN sesiones s ON s.id = r.sesion_id
-			WHERE cj.color = $1 AND s.temporada_id = $2`, color, temporadaID).Scan(&usos)
-
-		if usos > maxUsos {
-			maxUsos = usos
-			mejorColor = color
-		}
+	// En empate gana el primero en orden WUBRG
+	var color string
+	err := db.QueryRow(`
+		SELECT cj.color
+		FROM colores_jugados cj
+		JOIN resultados r ON r.id = cj.resultado_id
+		JOIN sesiones s ON s.id = r.sesion_id
+		WHERE s.temporada_id = $1
+		GROUP BY cj.color
+		ORDER BY COUNT(*) DESC, POSITION(cj.color IN 'WUBRG')
+		LIMIT 1`, temporadaID).Scan(&color)
+	if err != nil && err != sql.ErrNoRows {
+		log.Printf("color más jugado de la temporada %d: %v", temporadaID, err)
 	}
-
-	return mejorColor
+	return color
 }
 
 // ContarSesionesPorTemporada devuelve el número de sesiones de una temporada
 func ContarSesionesPorTemporada(db *sql.DB, temporadaID int) int {
 	var count int
-	db.QueryRow(`SELECT COUNT(*) FROM sesiones WHERE temporada_id=$1`, temporadaID).Scan(&count)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sesiones WHERE temporada_id=$1`, temporadaID).Scan(&count); err != nil {
+		log.Printf("contar sesiones de la temporada %d: %v", temporadaID, err)
+	}
 	return count
-}
-
-// ObtenerJugadoresEnSesion devuelve los IDs de jugadores con resultado en una sesión
-func ObtenerJugadoresEnSesion(db *sql.DB, sesionID int) ([]int, error) {
-	rows, err := db.Query(`SELECT jugador_id FROM resultados WHERE sesion_id=$1`, sesionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var ids []int
-	for rows.Next() {
-		var id int
-		rows.Scan(&id)
-		ids = append(ids, id)
-	}
-	return ids, nil
-}
-
-// EliminarResultadosSesion borra todos los resultados de una sesión (cascada borra victorias y colores)
-func EliminarResultadosSesion(db *sql.DB, sesionID int) error {
-	_, err := db.Exec(`DELETE FROM resultados WHERE sesion_id=$1`, sesionID)
-	return err
 }
 
 // FormatearColores convierte slice de colores a string separado por coma

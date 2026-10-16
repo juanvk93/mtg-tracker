@@ -126,6 +126,14 @@
     zona.addEventListener('pointercancel', function (e) {
       if (e.pointerId === puntero) limpiar();
     });
+    // Si el navegador pierde el dedo sin avisar con pointerup/pointercancel, cortar la
+    // repetición: si no, seguiría sumando o restando 5 cada 600 ms
+    zona.addEventListener('lostpointercapture', function (e) {
+      if (e.pointerId === puntero) limpiar();
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState !== 'visible' && puntero !== null) limpiar();
+    });
     // Teclado (Enter/Espacio sobre el botón): un clic sin puntero = ±1
     zona.addEventListener('click', function (e) {
       if (e.detail === 0) cambiar(j, signo);

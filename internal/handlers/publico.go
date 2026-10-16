@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"database/sql"
+	"errors"
 	"html/template"
 	"log"
 	"net/http"
@@ -124,7 +125,7 @@ func (a *AppHandlers) DetalleSesion(w http.ResponseWriter, r *http.Request) {
 
 	detalle, err := db.ObtenerDetalleSesion(a.DB, id)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			http.NotFound(w, r)
 			return
 		}
@@ -273,8 +274,13 @@ func (a *AppHandlers) ResumenTemporada(w http.ResponseWriter, r *http.Request) {
 
 	resumen, err := db.ObtenerResumenTemporada(a.DB, id)
 	if err != nil {
+		// 404 solo si la temporada no existe; un fallo de la BD es un 500
+		if errors.Is(err, sql.ErrNoRows) {
+			http.NotFound(w, r)
+			return
+		}
 		log.Println("Error al obtener resumen de temporada:", err)
-		http.NotFound(w, r)
+		http.Error(w, "Error interno", http.StatusInternalServerError)
 		return
 	}
 
@@ -294,7 +300,12 @@ func (a *AppHandlers) PerfilJugador(w http.ResponseWriter, r *http.Request) {
 
 	jugador, err := db.ObtenerJugador(a.DB, id)
 	if err != nil {
-		http.NotFound(w, r)
+		if errors.Is(err, sql.ErrNoRows) {
+			http.NotFound(w, r)
+			return
+		}
+		log.Println("Error al obtener el jugador:", err)
+		http.Error(w, "Error interno", http.StatusInternalServerError)
 		return
 	}
 
